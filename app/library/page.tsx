@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { History, Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp } from "lucide-react"
+import { History, Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp, ChevronRight } from "lucide-react"
 import { parseTimeSavedToMinutes, formatMinutes } from "@/lib/time"
 import { toolLabel } from "@/lib/constants"
 
@@ -180,26 +180,36 @@ export default async function LibraryPage() {
               ) : (
                 <ul className="flex flex-col gap-3">
                   {history.map((h) => (
-                    <li
-                      key={h.id}
-                      className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition hover:border-primary/30 sm:p-5"
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                          {h.kind === "paste" ? "Article" : "Question"}
-                        </span>
-                        <span>{new Date(h.created_at).toLocaleString()}</span>
-                        <span aria-hidden>·</span>
-                        <span>
-                          {h.tip_ids?.length ?? 0} tip{(h.tip_ids?.length ?? 0) === 1 ? "" : "s"}
-                        </span>
-                      </div>
-                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{h.input}</p>
-                      {h.summary && (
-                        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                          {h.summary}
-                        </p>
-                      )}
+                    <li key={h.id}>
+                      <Link
+                        href={`/library/history/${h.id}`}
+                        className="group flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[var(--shadow-brand-soft)] sm:p-5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                              {h.kind === "paste" ? "Article" : "Question"}
+                            </span>
+                            <span>{new Date(h.created_at).toLocaleString()}</span>
+                            <span aria-hidden>·</span>
+                            <span>
+                              {h.tip_ids?.length ?? 0} tip{(h.tip_ids?.length ?? 0) === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">
+                            {h.input}
+                          </p>
+                          {h.summary && (
+                            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                              {h.summary}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight
+                          className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary"
+                          aria-hidden
+                        />
+                      </Link>
                     </li>
                   ))}
                 </ul>

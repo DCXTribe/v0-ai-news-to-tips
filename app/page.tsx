@@ -2,82 +2,34 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { createClient } from "@/lib/supabase/server"
-import { createServiceClient } from "@/lib/supabase/service"
-import { TipCard, type Tip } from "@/components/tip-card"
+import { TipCard } from "@/components/tip-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles } from "lucide-react"
+import { getCachedFeed } from "@/lib/feed"
 
-export const dynamic = "force-dynamic"
+// Note: no `force-dynamic`. The page is naturally dynamic because it reads
+// auth cookies, but the heavy feed query is cached via unstable_cache and
+// invalidated by the cron the moment a new edition is written.
 export const maxDuration = 60
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-type FeedItem = {
-  id: string
-  feed_date: string
-  headline: string
-  summary: string
-  category: string | null
-  source_label: string | null
-  source_url: string | null
-  ai_daily_tips: Tip[]
-}
-
-async function getFeed(): Promise<{ items: FeedItem[]; date: string; isToday: boolean }> {
-  const today = todayDateString()
-  const service = createServiceClient()
-
-  const { data: todays } = await service
-    .from("ai_daily_feed")
-    .select("*, ai_daily_tips(*)")
-    .eq("feed_date", today)
-    .order("created_at", { ascending: true })
-
-  if (todays && todays.length > 0) {
-    return { items: todays as FeedItem[], date: today, isToday: true }
-  }
-
-  const { data: latest } = await service
-    .from("ai_daily_feed")
-    .select("feed_date")
-    .order("feed_date", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (!latest) return { items: [], date: today, isToday: true }
-
-  const { data: items } = await service
-    .from("ai_daily_feed")
-    .select("*, ai_daily_tips(*)")
-    .eq("feed_date", latest.feed_date)
-    .order("created_at", { ascending: true })
-
-  return {
-    items: (items ?? []) as FeedItem[],
-    date: latest.feed_date,
-    isToday: false,
-  }
-}
-
-async function getSavedTipIds(): Promise<Set<string>> {
+async function getSavedTipIds(): Promise<{ user: { id: string } | null; saved: Set<string> }> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return new Set()
+  if (!user) return { user: null, saved: new Set() }
   const { data } = await supabase.from("ai_daily_saves").select("tip_id").eq("user_id", user.id)
-  return new Set((data ?? []).map((r) => r.tip_id))
+  return { user, saved: new Set((data ?? []).map((r) => r.tip_id)) }
 }
 
 export default async function HomePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const [{ items: feed, date: feedDate, isToday }, savedSet] = await Promise.all([getFeed(), getSavedTipIds()])
+  // Run cached feed read + per-user save lookup in parallel
+  const [{ items: feed, date: feedDate, isToday }, { user, saved: savedSet }] = await Promise.all([
+    getCachedFeed(),
+    getSavedTipIds(),
+  ])
+
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
   const feedDateLabel = new Date(feedDate + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "long",
@@ -180,8 +132,8 @@ export default async function HomePage() {
                   ask a question
                 </Link>{" "}
                 or{" "}
-                <Link href="/translate" className="font-medium text-foreground underline-offset-4 hover:underline">
-                  translate an article
+                <Link href="/unpack" className="font-medium text-foreground underline-offset-4 hover:underline">
+                  unpack an article
                 </Link>{" "}
                 to generate tips on demand.
               </p>

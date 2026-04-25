@@ -102,7 +102,7 @@ ${article.publishedAt ? `Published: ${article.publishedAt}` : ""}
 
 Article markdown (truncated):
 """
-${article.markdown.slice(0, 10000)}
+${article.markdown.slice(0, 8000)}
 """`,
   })
 
