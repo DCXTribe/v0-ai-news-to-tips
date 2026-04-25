@@ -3,6 +3,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { createClient } from "@/lib/supabase/server"
 import { TipCard } from "@/components/tip-card"
+import { TodayFeedGrid } from "@/components/today-feed-grid"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles, Compass } from "lucide-react"
@@ -139,7 +140,7 @@ export default async function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <TodayFeedGrid>
               {feed.flatMap((item) =>
                 (item.ai_daily_tips ?? []).map((tip) => (
                   <TipCard
@@ -152,7 +153,7 @@ export default async function HomePage() {
                   />
                 )),
               )}
-            </div>
+            </TodayFeedGrid>
           )}
         </section>
 
