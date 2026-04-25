@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { TipCard, type Tip } from "@/components/tip-card"
-import { Sparkles, History, BookmarkCheck, PackageOpen, ChevronRight, Search, X, Compass } from "lucide-react"
+import { Sparkles, History, BookmarkCheck, PackageOpen, ChevronRight, Search, X, Compass, MessageCircleQuestion } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type SaveItem = { tip: Tip; status: string; savedAt: string }
 type HistoryItem = {
@@ -18,9 +20,32 @@ type HistoryItem = {
   tip_ids: string[]
 }
 
+type HistoryKindFilter = "all" | "paste" | "question" | "advisor"
+
 export function LibraryTabs({ saves, history }: { saves: SaveItem[]; history: HistoryItem[] }) {
+  // Allow deep-linking to the History tab via `?tab=history` from feature pages.
+  // Optionally pre-filter via `?kind=paste|question|advisor`.
+  const params = useSearchParams()
+  const initialTab = params?.get("tab") === "history" ? "history" : "saved"
+  const initialKind = (() => {
+    const k = params?.get("kind")
+    if (k === "paste" || k === "question" || k === "advisor") return k
+    return "all" as HistoryKindFilter
+  })()
   const [query, setQuery] = useState("")
+  const [historyKind, setHistoryKind] = useState<HistoryKindFilter>(initialKind)
   const q = query.trim().toLowerCase()
+
+  // Counts per kind regardless of search query — drives chip badges
+  const historyCounts = useMemo(() => {
+    const counts = { all: history.length, paste: 0, question: 0, advisor: 0 }
+    for (const h of history) {
+      if (h.kind === "paste") counts.paste++
+      else if (h.kind === "advisor") counts.advisor++
+      else counts.question++
+    }
+    return counts
+  }, [history])
 
   const filteredSaves = useMemo(() => {
     if (!q) return saves
@@ -41,17 +66,26 @@ export function LibraryTabs({ saves, history }: { saves: SaveItem[]; history: Hi
   }, [saves, q])
 
   const filteredHistory = useMemo(() => {
-    if (!q) return history
-    return history.filter((h) => {
+    let rows = history
+    if (historyKind !== "all") {
+      // Treat any non-paste / non-advisor row as a "question" (legacy default).
+      rows = rows.filter((h) => {
+        if (historyKind === "paste") return h.kind === "paste"
+        if (historyKind === "advisor") return h.kind === "advisor"
+        return h.kind !== "paste" && h.kind !== "advisor"
+      })
+    }
+    if (!q) return rows
+    return rows.filter((h) => {
       const haystack = [h.input, h.summary, h.kind].filter(Boolean).join(" ").toLowerCase()
       return haystack.includes(q)
     })
-  }, [history, q])
+  }, [history, historyKind, q])
 
   const totalMatching = filteredSaves.length + filteredHistory.length
 
   return (
-    <Tabs defaultValue="saved">
+    <Tabs defaultValue={initialTab}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <TabsList className="w-full justify-start sm:w-auto">
           <TabsTrigger value="saved" className="gap-1.5">
@@ -110,8 +144,52 @@ export function LibraryTabs({ saves, history }: { saves: SaveItem[]; history: Hi
       </TabsContent>
 
       <TabsContent value="history" className="mt-6">
+        {/* Kind filter chips — let users scope by Article / Question / Advisor.
+            Counts come from the unfiltered set so users can see what's available
+            even when their current filter returns nothing. */}
+        <div
+          role="tablist"
+          aria-label="Filter history by kind"
+          className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1"
+        >
+          <KindChip
+            label="All"
+            count={historyCounts.all}
+            Icon={History}
+            active={historyKind === "all"}
+            onClick={() => setHistoryKind("all")}
+          />
+          <KindChip
+            label="Articles"
+            count={historyCounts.paste}
+            Icon={PackageOpen}
+            active={historyKind === "paste"}
+            onClick={() => setHistoryKind("paste")}
+          />
+          <KindChip
+            label="Questions"
+            count={historyCounts.question}
+            Icon={MessageCircleQuestion}
+            active={historyKind === "question"}
+            onClick={() => setHistoryKind("question")}
+          />
+          <KindChip
+            label="Advisor"
+            count={historyCounts.advisor}
+            Icon={Compass}
+            active={historyKind === "advisor"}
+            onClick={() => setHistoryKind("advisor")}
+          />
+        </div>
+
         {filteredHistory.length === 0 ? (
-          q ? null : <EmptyHistory />
+          q ? null : historyKind !== "all" ? (
+            <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 px-6 py-8 text-center text-sm text-muted-foreground">
+              No {kindLabel(historyKind).toLowerCase()} sessions yet.
+            </div>
+          ) : (
+            <EmptyHistory />
+          )
         ) : (
           <ul className="flex flex-col gap-3">
             {filteredHistory.map((h) => (
@@ -162,6 +240,53 @@ function historyKindLabel(kind: string): string {
   return "Question"
 }
 
+function kindLabel(kind: HistoryKindFilter): string {
+  if (kind === "paste") return "Article"
+  if (kind === "advisor") return "Advisor"
+  if (kind === "question") return "Question"
+  return "Activity"
+}
+
+function KindChip({
+  label,
+  count,
+  Icon,
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  Icon: typeof History
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        active
+          ? "border-primary bg-primary/10 text-primary shadow-sm"
+          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span>{label}</span>
+      <span
+        className={cn(
+          "rounded-full px-1.5 text-[10px] font-semibold",
+          active ? "bg-primary/15 text-primary" : "bg-surface-high text-muted-foreground",
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
 function EmptySaved() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-surface-low/60 px-6 py-12 text-center">
@@ -172,7 +297,7 @@ function EmptySaved() {
         <p className="font-semibold">Your playbook is empty</p>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
           Browse{" "}
-          <Link href="/" className="font-medium text-foreground underline-offset-4 hover:underline">
+          <Link href="/today" className="font-medium text-foreground underline-offset-4 hover:underline">
             today&apos;s tips
           </Link>{" "}
           and tap <span className="font-medium text-foreground">Save</span> to keep the ones that work for your job.
@@ -180,7 +305,7 @@ function EmptySaved() {
       </div>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <Button asChild size="sm" className="rounded-xl">
-          <Link href="/">
+          <Link href="/today">
             <Sparkles className="h-4 w-4" aria-hidden />
             See today&apos;s tips
           </Link>

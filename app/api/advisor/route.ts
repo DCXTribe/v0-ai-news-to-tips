@@ -26,17 +26,19 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Pull the user's available tools and role from their profile (if any)
+  // Pull the user's available tools, role, and skill level from their profile (if any)
   let availableTools: string[] | null = null
   let role: string | null = null
+  let skillLevel: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("ai_daily_profiles")
-      .select("role, tools")
+      .select("role, tools, skill_level")
       .eq("id", user.id)
       .maybeSingle()
     availableTools = (profile?.tools as string[] | null) ?? null
     role = (profile?.role as string | null) ?? null
+    skillLevel = (profile?.skill_level as string | null) ?? null
   }
 
   // Ground the recommendation in current sources via Tavily
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
       searchResults: results,
       availableTools,
       role,
+      skillLevel,
     })
   } catch (err) {
     console.error("[advisor] generation failed", err)
