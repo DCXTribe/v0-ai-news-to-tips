@@ -49,7 +49,8 @@ export default async function AdvisorPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advisor</p>
-                <h1 className="font-display text-balance text-3xl font-semibold leading-[1.15] md:text-4xl">
+                {/* Matches Today's mobile progression (2xl→3xl→4xl). */}
+                <h1 className="font-display text-balance text-2xl font-semibold leading-[1.15] sm:text-3xl md:text-4xl">
                   Which AI tool should I use for this?
                 </h1>
               </div>

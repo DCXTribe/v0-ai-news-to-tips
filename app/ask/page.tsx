@@ -55,7 +55,8 @@ export default async function AskPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Ask</p>
-                <h1 className="font-display text-balance text-3xl font-semibold leading-[1.15] md:text-4xl">
+                {/* Matches Today's mobile progression (2xl→3xl→4xl). */}
+                <h1 className="font-display text-balance text-2xl font-semibold leading-[1.15] sm:text-3xl md:text-4xl">
                   Ask anything. Get prompts that actually work.
                 </h1>
               </div>

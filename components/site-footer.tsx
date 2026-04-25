@@ -50,8 +50,48 @@ export async function SiteFooter() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3 sm:gap-x-10">
-          {/* Product col — same for everyone but Today link respects auth */}
+        {/* Mobile-only toolkit summary for logged-in users.
+            On mobile the Product col is duplicated by the bottom nav and the
+            Account col is duplicated by the header user-menu, so we hide both.
+            We keep one quiet line that surfaces the user's actual toolkit
+            (the only mobile-useful info) with an unobtrusive edit affordance. */}
+        {isAuthed && (
+          <div className="flex flex-col gap-1.5 md:hidden">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">Your toolkit</p>
+            {userTools.length > 0 ? (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {userTools.map((t) => toolLabel(t)).join(" · ")}
+                {" "}
+                <Link
+                  href="/profile"
+                  className="ml-1 inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  <Wrench className="h-3 w-3" aria-hidden />
+                  Edit
+                </Link>
+              </p>
+            ) : (
+              <Link
+                href="/onboarding?next=/today"
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Choose your toolkit
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Tablet & desktop: full 3-col footer.
+            For anonymous users this also shows on mobile — they don't have the
+            bottom nav, so they need the Product/Works with/Account columns. */}
+        <div
+          className={
+            isAuthed
+              ? "hidden grid-cols-3 gap-x-10 gap-y-3 md:grid"
+              : "grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3 sm:gap-x-10"
+          }
+        >
+          {/* Product col */}
           <div className="flex flex-col gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">Product</p>
             <Link href={todayHref} className="text-sm text-muted-foreground hover:text-foreground">
@@ -73,7 +113,11 @@ export async function SiteFooter() {
             )}
           </div>
 
-          {/* Works with — generic for anonymous, your toolkit for logged-in */}
+          {/* Works with — generic for anonymous, your toolkit for logged-in.
+              The "Edit toolkit" link previously used `text-primary` which made
+              it the only colored item in an otherwise muted list — visually
+              jarring. Switched to muted-foreground with primary on hover so it
+              reads as part of the directory until the user reaches for it. */}
           <div className="flex flex-col gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
               {isAuthed ? "Your toolkit" : "Works with"}
@@ -88,7 +132,7 @@ export async function SiteFooter() {
                   ))}
                   <Link
                     href="/profile"
-                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
                   >
                     <Wrench className="h-3 w-3" aria-hidden />
                     Edit toolkit
@@ -99,7 +143,7 @@ export async function SiteFooter() {
                   <span className="text-sm text-muted-foreground">No tools set yet</span>
                   <Link
                     href="/onboarding?next=/today"
-                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                   >
                     Choose your toolkit
                   </Link>
@@ -115,7 +159,7 @@ export async function SiteFooter() {
             )}
           </div>
 
-          {/* Account col — auth-state aware */}
+          {/* Account col */}
           <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">Account</p>
             {isAuthed ? (
@@ -159,9 +203,10 @@ export async function SiteFooter() {
       </div>
 
       <div className="border-t border-border/40">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-1 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-1 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:px-6 sm:py-4">
           <p>© {new Date().getFullYear()} AI Daily</p>
-          <p>Tips grounded in official AI vendor sources.</p>
+          {/* Tagline only on tablet+ — mobile keeps the copyright as a single quiet line. */}
+          <p className="hidden sm:block">Tips grounded in official AI vendor sources.</p>
         </div>
       </div>
     </footer>
