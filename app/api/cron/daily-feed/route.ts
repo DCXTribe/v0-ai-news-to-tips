@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 import { tavilySearch } from "@/lib/mcp/tavily"
 import { scrapeUrl } from "@/lib/mcp/firecrawl"
 import { generateTipFromNewsItem } from "@/lib/ai/generate"
+import { FEED_CACHE_TAG } from "@/lib/feed"
 
-// 60s is the max allowed on the Vercel Hobby plan. We process sources sequentially
-// and cap to whatever fits comfortably in this window (see SOURCE_LIMIT below).
-// If you upgrade to Pro, you can safely raise this to 300.
+// 60s is the max allowed on the Vercel Hobby plan. We process sources IN PARALLEL
+// so 5 sources finish in roughly the time of a single one (~15-20s).
+// If you upgrade to Pro you can raise this to 300 and lift SOURCE_LIMIT.
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
 
-const SOURCE_LIMIT = 3 // process up to N sources per cron invocation
+const SOURCE_LIMIT = 5 // sources processed per cron invocation
 
 type NewsSource = {
   id: string
@@ -37,7 +39,6 @@ function isAuthorized(req: Request) {
 }
 
 async function findRecentArticleFor(source: NewsSource): Promise<string | null> {
-  // Use Tavily restricted to the source's domain to find a fresh article URL
   try {
     const host = new URL(source.url).hostname.replace(/^www\./, "")
     const { results } = await tavilySearch(`latest from ${source.publisher}`, {
@@ -49,6 +50,84 @@ async function findRecentArticleFor(source: NewsSource): Promise<string | null> 
   } catch (err) {
     console.log("[v0] tavily lookup failed for", source.name, err)
     return null
+  }
+}
+
+/**
+ * Process one source end-to-end: find article → scrape → generate tip → persist.
+ * Returns a result envelope; never throws (so Promise.allSettled isn't strictly
+ * needed but we still use it for safety).
+ */
+async function processSource(
+  source: NewsSource,
+  date: string,
+  service: ReturnType<typeof createServiceClient>,
+): Promise<{ ok: true; source: string; headline: string } | { ok: false; source: string; error: string }> {
+  try {
+    const articleUrl = await findRecentArticleFor(source)
+    if (!articleUrl) return { ok: false, source: source.name, error: "no recent article found" }
+
+    // Skip if we already covered this URL on any previous day
+    const { data: existingFeed } = await service
+      .from("ai_daily_feed")
+      .select("id")
+      .eq("source_url", articleUrl)
+      .maybeSingle()
+    if (existingFeed) return { ok: false, source: source.name, error: "already covered" }
+
+    const article = await scrapeUrl(articleUrl)
+    if (!article.markdown || article.markdown.length < 300) {
+      return { ok: false, source: source.name, error: "article body too short" }
+    }
+
+    const item = await generateTipFromNewsItem({ article, vendor: source.vendor })
+
+    const { data: feedRow, error: feedErr } = await service
+      .from("ai_daily_feed")
+      .insert({
+        feed_date: date,
+        headline: item.headline,
+        summary: item.summary,
+        category: item.category,
+        source_label: item.source_label,
+        source_id: source.id,
+        source_url: article.url,
+      })
+      .select("id")
+      .single()
+    if (feedErr || !feedRow) {
+      return { ok: false, source: source.name, error: feedErr?.message ?? "feed insert failed" }
+    }
+
+    const { error: tipErr } = await service.from("ai_daily_tips").insert({
+      feed_id: feedRow.id,
+      title: item.tip.title,
+      why_it_matters: item.tip.why_it_matters,
+      prompt: item.tip.prompt,
+      scenario: item.tip.scenario,
+      before_text: item.tip.before_text,
+      after_text: item.tip.after_text,
+      tools: item.tip.tools,
+      time_saved: item.tip.time_saved,
+      confidence: item.tip.confidence,
+      citations: item.tip.citations,
+      source_url: article.url,
+      source_title: article.title,
+      source_publisher: article.publisher ?? source.publisher,
+      source_published_at: article.publishedAt,
+    })
+    if (tipErr) return { ok: false, source: source.name, error: tipErr.message }
+
+    await service
+      .from("ai_daily_news_sources")
+      .update({ last_scraped_at: new Date().toISOString() })
+      .eq("id", source.id)
+
+    return { ok: true, source: source.name, headline: item.headline }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.log("[v0] cron error for", source.name, msg)
+    return { ok: false, source: source.name, error: msg }
   }
 }
 
@@ -88,89 +167,30 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "No active news sources configured" }, { status: 500 })
   }
 
+  // Process sources IN PARALLEL — they're fully independent and Tavily/Firecrawl
+  // can handle the concurrency. This brings total time from ~45-60s sequential
+  // down to ~15-20s parallel for 5 sources.
+  const targets = (sources as NewsSource[]).slice(0, SOURCE_LIMIT)
+  const results = await Promise.allSettled(targets.map((s) => processSource(s, date, service)))
+
   const inserted: Array<{ source: string; headline: string }> = []
   const failed: Array<{ source: string; error: string }> = []
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      if (r.value.ok) inserted.push({ source: r.value.source, headline: r.value.headline })
+      else failed.push({ source: r.value.source, error: r.value.error })
+    } else {
+      failed.push({ source: "unknown", error: String(r.reason).slice(0, 200) })
+    }
+  }
 
-  // Limit how many sources we process per invocation to stay under maxDuration.
-  // Sources we don't reach today will be picked up tomorrow (and the housekeeping
-  // step above marks anything older than 30 days as stale anyway).
-  for (const source of sources.slice(0, SOURCE_LIMIT) as NewsSource[]) {
+  // If we wrote at least one new tip, purge the homepage feed cache immediately
+  // so visitors see the new edition without waiting for the 1h fallback.
+  if (inserted.length > 0) {
     try {
-      const articleUrl = await findRecentArticleFor(source)
-      if (!articleUrl) {
-        failed.push({ source: source.name, error: "no recent article found" })
-        continue
-      }
-
-      // Skip if we already covered this URL
-      const { data: existingFeed } = await service
-        .from("ai_daily_feed")
-        .select("id")
-        .eq("source_url", articleUrl)
-        .maybeSingle()
-      if (existingFeed) {
-        failed.push({ source: source.name, error: "already covered" })
-        continue
-      }
-
-      const article = await scrapeUrl(articleUrl)
-      if (!article.markdown || article.markdown.length < 300) {
-        failed.push({ source: source.name, error: "article body too short" })
-        continue
-      }
-
-      const item = await generateTipFromNewsItem({ article, vendor: source.vendor })
-
-      const { data: feedRow, error: feedErr } = await service
-        .from("ai_daily_feed")
-        .insert({
-          feed_date: date,
-          headline: item.headline,
-          summary: item.summary,
-          category: item.category,
-          source_label: item.source_label,
-          source_id: source.id,
-          source_url: article.url,
-        })
-        .select("id")
-        .single()
-      if (feedErr || !feedRow) {
-        failed.push({ source: source.name, error: feedErr?.message ?? "feed insert failed" })
-        continue
-      }
-
-      const { error: tipErr } = await service.from("ai_daily_tips").insert({
-        feed_id: feedRow.id,
-        title: item.tip.title,
-        why_it_matters: item.tip.why_it_matters,
-        prompt: item.tip.prompt,
-        scenario: item.tip.scenario,
-        before_text: item.tip.before_text,
-        after_text: item.tip.after_text,
-        tools: item.tip.tools,
-        time_saved: item.tip.time_saved,
-        confidence: item.tip.confidence,
-        citations: item.tip.citations,
-        source_url: article.url,
-        source_title: article.title,
-        source_publisher: article.publisher ?? source.publisher,
-        source_published_at: article.publishedAt,
-      })
-      if (tipErr) {
-        failed.push({ source: source.name, error: tipErr.message })
-        continue
-      }
-
-      await service
-        .from("ai_daily_news_sources")
-        .update({ last_scraped_at: new Date().toISOString() })
-        .eq("id", source.id)
-
-      inserted.push({ source: source.name, headline: item.headline })
+      revalidateTag(FEED_CACHE_TAG)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.log("[v0] cron error for", source.name, msg)
-      failed.push({ source: source.name, error: msg })
+      console.log("[v0] revalidateTag failed:", err)
     }
   }
 
