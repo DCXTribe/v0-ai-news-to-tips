@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { TipCard, type Tip } from "@/components/tip-card"
+import { ResultsCta } from "@/components/results-cta"
 import { toast } from "sonner"
 import { Loader2, Sparkles } from "lucide-react"
 
@@ -114,14 +115,17 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
       )}
 
       {tips && tips.length > 0 && (
-        <div>
-          <h2 className="mb-4 text-xl font-semibold tracking-tight">
-            {tips.length} tip{tips.length === 1 ? "" : "s"} for you
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {tips.map((t) => (
-              <TipCard key={t.id} tip={t} isAuthed={isAuthed} />
-            ))}
+        <div className="flex flex-col gap-5">
+          <ResultsCta isAuthed={isAuthed} kind="ask" />
+          <div>
+            <h2 className="mb-4 text-xl font-semibold tracking-tight">
+              {tips.length} tip{tips.length === 1 ? "" : "s"} for you
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {tips.map((t) => (
+                <TipCard key={t.id} tip={t} isAuthed={isAuthed} />
+              ))}
+            </div>
           </div>
         </div>
       )}
