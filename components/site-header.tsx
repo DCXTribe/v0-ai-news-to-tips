@@ -30,6 +30,9 @@ export async function SiteHeader() {
           <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/ask">Ask</Link>
           </Button>
+          <Button asChild variant="ghost" size="sm" className="rounded-full">
+            <Link href="/advisor">Advisor</Link>
+          </Button>
           {user && (
             <Button asChild variant="ghost" size="sm" className="rounded-full">
               <Link href="/library">Library</Link>

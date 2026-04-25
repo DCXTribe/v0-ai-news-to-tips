@@ -10,7 +10,7 @@ import { BookmarkCheck, History, Sparkles, ArrowRight } from "lucide-react"
  *   session ends. Make that obvious and offer the upgrade.
  * - Authed: confirm the work was persisted to history and link there directly.
  */
-export function ResultsCta({ isAuthed, kind }: { isAuthed: boolean; kind: "unpack" | "ask" }) {
+export function ResultsCta({ isAuthed, kind }: { isAuthed: boolean; kind: "unpack" | "ask" | "advisor" }) {
   if (isAuthed) {
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--success)]/25 bg-[color:var(--success-soft)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
@@ -41,7 +41,7 @@ export function ResultsCta({ isAuthed, kind }: { isAuthed: boolean; kind: "unpac
   }
 
   // Anonymous — convert
-  const next = kind === "unpack" ? "/unpack" : "/ask"
+  const next = kind === "unpack" ? "/unpack" : kind === "advisor" ? "/advisor" : "/ask"
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
       <div className="flex items-start gap-3">

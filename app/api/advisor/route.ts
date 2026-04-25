@@ -1,0 +1,87 @@
+import { createClient } from "@/lib/supabase/server"
+import { tavilySearch } from "@/lib/mcp/tavily"
+import { generateToolRecommendation } from "@/lib/ai/generate"
+
+export const maxDuration = 60
+export const dynamic = "force-dynamic"
+
+export async function POST(req: Request) {
+  let body: { task?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  const task = (body.task ?? "").trim()
+  if (task.length < 8) {
+    return Response.json({ error: "Describe the task in a bit more detail." }, { status: 400 })
+  }
+  if (task.length > 800) {
+    return Response.json({ error: "Task description is too long (max 800 chars)." }, { status: 400 })
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Pull the user's available tools and role from their profile (if any)
+  let availableTools: string[] | null = null
+  let role: string | null = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from("ai_daily_profiles")
+      .select("role, tools")
+      .eq("id", user.id)
+      .maybeSingle()
+    availableTools = (profile?.tools as string[] | null) ?? null
+    role = (profile?.role as string | null) ?? null
+  }
+
+  // Ground the recommendation in current sources via Tavily
+  let answer: string | null = null
+  let results: Awaited<ReturnType<typeof tavilySearch>>["results"] = []
+  try {
+    const search = await tavilySearch(`Best AI tool to ${task} 2026 ChatGPT Copilot Gemini Claude Perplexity`, {
+      maxResults: 6,
+      days: 365,
+    })
+    answer = search.answer
+    results = search.results
+  } catch (err) {
+    console.error("[advisor] Tavily failed, continuing ungrounded", err)
+  }
+
+  let output
+  try {
+    output = await generateToolRecommendation({
+      task,
+      searchAnswer: answer,
+      searchResults: results,
+      availableTools,
+      role,
+    })
+  } catch (err) {
+    console.error("[advisor] generation failed", err)
+    return Response.json({ error: "We couldn't generate a recommendation. Please try again." }, { status: 500 })
+  }
+
+  // Persist to history if logged in (kind = 'advisor')
+  if (user) {
+    try {
+      await supabase.from("ai_daily_history").insert({
+        user_id: user.id,
+        kind: "advisor",
+        input: task,
+        summary: output.task_summary,
+        tip_ids: [],
+      })
+    } catch (err) {
+      console.error("[advisor] history insert failed", err)
+      // Non-blocking
+    }
+  }
+
+  return Response.json({ ...output, scoped_to_toolkit: !!availableTools })
+}
