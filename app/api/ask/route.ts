@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { generateTipsFromQuestion } from "@/lib/ai/generate"
+import { tavilySearch } from "@/lib/mcp/tavily"
 import { NextResponse } from "next/server"
 
 export const maxDuration = 60
@@ -29,40 +30,62 @@ export async function POST(req: Request) {
     }
   }
 
+  // 1. Search the web for grounding
+  let searchAnswer: string | null = null
+  let searchResults: Awaited<ReturnType<typeof tavilySearch>>["results"] = []
   try {
-    const result = await generateTipsFromQuestion({ question, role, tools })
+    const r = await tavilySearch(question, { maxResults: 6, days: 90 })
+    searchAnswer = r.answer
+    searchResults = r.results
+  } catch (err) {
+    console.log("[v0] tavily search failed (continuing without grounding):", err)
+  }
 
-    if (user) {
-      const tipRows = result.tips.map((t) => ({
-        owner_id: user.id,
-        title: t.title,
-        why_it_matters: t.why_it_matters,
-        prompt: t.prompt,
-        scenario: t.scenario,
-        before_text: t.before_text,
-        after_text: t.after_text,
-        tools: t.tools,
-        roles: role ? [role] : [],
-        time_saved: t.time_saved,
-      }))
-      const { data: inserted } = await supabase.from("ai_daily_tips").insert(tipRows).select("*")
-      const tipIds = (inserted ?? []).map((r) => r.id)
-      await supabase.from("ai_daily_history").insert({
-        user_id: user.id,
-        kind: "ask",
-        input: question.slice(0, 2000),
-        summary: result.summary,
-        tip_ids: tipIds,
-      })
-      return NextResponse.json({ summary: result.summary, tips: inserted ?? [] })
-    }
-
-    return NextResponse.json({
-      summary: result.summary,
-      tips: result.tips.map((t, i) => ({ ...t, id: `tmp-${i}` })),
+  // 2. Generate grounded tips
+  let result: Awaited<ReturnType<typeof generateTipsFromQuestion>>
+  try {
+    result = await generateTipsFromQuestion({
+      question,
+      searchAnswer,
+      searchResults,
+      role,
+      tools,
     })
   } catch (err) {
-    console.log("[v0] ask error:", err)
+    console.log("[v0] ask generation error:", err)
     return NextResponse.json({ error: "Failed to generate tips. Try again." }, { status: 500 })
   }
+
+  // 3. Persist for logged-in users
+  if (user) {
+    const tipRows = result.tips.map((t) => ({
+      owner_id: user.id,
+      title: t.title,
+      why_it_matters: t.why_it_matters,
+      prompt: t.prompt,
+      scenario: t.scenario,
+      before_text: t.before_text,
+      after_text: t.after_text,
+      tools: t.tools,
+      roles: role ? [role] : [],
+      time_saved: t.time_saved,
+      confidence: t.confidence,
+      citations: t.citations,
+    }))
+    const { data: inserted } = await supabase.from("ai_daily_tips").insert(tipRows).select("*")
+    const tipIds = (inserted ?? []).map((r) => r.id)
+    await supabase.from("ai_daily_history").insert({
+      user_id: user.id,
+      kind: "ask",
+      input: question.slice(0, 2000),
+      summary: result.summary,
+      tip_ids: tipIds,
+    })
+    return NextResponse.json({ summary: result.summary, tips: inserted ?? [] })
+  }
+
+  return NextResponse.json({
+    summary: result.summary,
+    tips: result.tips.map((t, i) => ({ ...t, id: `tmp-${i}` })),
+  })
 }

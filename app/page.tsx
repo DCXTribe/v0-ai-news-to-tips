@@ -2,14 +2,12 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { createClient } from "@/lib/supabase/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { generateDailyFeed } from "@/lib/ai/generate"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, FileText, MessageCircleQuestion, BookOpen } from "lucide-react"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10)
@@ -22,58 +20,45 @@ type FeedItem = {
   summary: string
   category: string | null
   source_label: string | null
+  source_url: string | null
   ai_daily_tips: Tip[]
 }
 
-async function getFeed(): Promise<FeedItem[]> {
-  const date = todayDateString()
+async function getFeed(): Promise<{ items: FeedItem[]; date: string; isToday: boolean }> {
+  const today = todayDateString()
   const service = createServiceClient()
 
-  const { data: existing } = await service
+  // Try today first
+  const { data: todays } = await service
     .from("ai_daily_feed")
     .select("*, ai_daily_tips(*)")
-    .eq("feed_date", date)
+    .eq("feed_date", today)
     .order("created_at", { ascending: true })
 
-  if (existing && existing.length > 0) return existing as FeedItem[]
+  if (todays && todays.length > 0) {
+    return { items: todays as FeedItem[], date: today, isToday: true }
+  }
 
-  // Generate today's feed on first visit and persist
-  try {
-    const generated = await generateDailyFeed()
-    for (const item of generated) {
-      const { data: feedRow } = await service
-        .from("ai_daily_feed")
-        .insert({
-          feed_date: date,
-          headline: item.headline,
-          summary: item.summary,
-          category: item.category,
-          source_label: item.source_label,
-        })
-        .select("id")
-        .single()
-      if (!feedRow) continue
-      await service.from("ai_daily_tips").insert({
-        feed_id: feedRow.id,
-        title: item.tip.title,
-        why_it_matters: item.tip.why_it_matters,
-        prompt: item.tip.prompt,
-        scenario: item.tip.scenario,
-        before_text: item.tip.before_text,
-        after_text: item.tip.after_text,
-        tools: item.tip.tools,
-        time_saved: item.tip.time_saved,
-      })
-    }
-    const { data: fresh } = await service
-      .from("ai_daily_feed")
-      .select("*, ai_daily_tips(*)")
-      .eq("feed_date", date)
-      .order("created_at", { ascending: true })
-    return (fresh ?? []) as FeedItem[]
-  } catch (err) {
-    console.log("[v0] home feed error:", err)
-    return []
+  // Fall back to most recent feed date
+  const { data: latest } = await service
+    .from("ai_daily_feed")
+    .select("feed_date")
+    .order("feed_date", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!latest) return { items: [], date: today, isToday: true }
+
+  const { data: items } = await service
+    .from("ai_daily_feed")
+    .select("*, ai_daily_tips(*)")
+    .eq("feed_date", latest.feed_date)
+    .order("created_at", { ascending: true })
+
+  return {
+    items: (items ?? []) as FeedItem[],
+    date: latest.feed_date,
+    isToday: false,
   }
 }
 
@@ -92,8 +77,13 @@ export default async function HomePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const [feed, savedSet] = await Promise.all([getFeed(), getSavedTipIds()])
-  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+  const [{ items: feed, date: feedDate, isToday }, savedSet] = await Promise.all([getFeed(), getSavedTipIds()])
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+  const feedDateLabel = new Date(feedDate + "T00:00:00").toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -104,13 +94,14 @@ export default async function HomePage() {
         <section className="border-b border-border bg-gradient-to-b from-accent/40 to-background">
           <div className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-20">
             <div className="flex flex-col gap-6 text-balance">
-              <p className="text-sm font-medium uppercase tracking-wide text-primary">{today} edition</p>
+              <p className="text-sm font-medium uppercase tracking-wide text-primary">{todayLabel} edition</p>
               <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
                 AI news, translated into things you can actually do today.
               </h1>
               <p className="max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-                Every day we turn the latest AI updates into copy-paste prompts and quick workflows for Microsoft
-                Copilot, ChatGPT, Gemini, Claude and Perplexity — for your role, in plain English.
+                Every morning we read the official OpenAI, Microsoft, Google, Anthropic and Perplexity blogs and turn
+                what&apos;s new into copy-paste prompts and quick workflows for your role &mdash; with the source linked
+                on every tip.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Button asChild size="lg">
@@ -148,9 +139,15 @@ export default async function HomePage() {
         <section id="today" className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Today&apos;s tips</h2>
+              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+                {isToday ? "Today's tips" : "Latest edition"}
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {feed.length} tip{feed.length === 1 ? "" : "s"} generated for {today}.
+                {feed.length > 0
+                  ? `${feed.length} tip${feed.length === 1 ? "" : "s"} · ${feedDateLabel}${
+                      isToday ? "" : " (today's edition publishes overnight)"
+                    }`
+                  : "Awaiting first edition."}
               </p>
             </div>
             {user && (
@@ -165,10 +162,15 @@ export default async function HomePage() {
 
           {feed.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/30 p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                Today&apos;s feed isn&apos;t ready yet. Refresh in a moment, or{" "}
+              <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
+                The first edition is being prepared. The daily feed publishes overnight by reading official AI vendor
+                blogs. In the meantime,{" "}
                 <Link href="/ask" className="font-medium text-foreground underline-offset-4 hover:underline">
                   ask a question
+                </Link>{" "}
+                or{" "}
+                <Link href="/translate" className="font-medium text-foreground underline-offset-4 hover:underline">
+                  translate an article
                 </Link>{" "}
                 to generate tips on demand.
               </p>
@@ -197,7 +199,7 @@ export default async function HomePage() {
             <div>
               <h3 className="text-lg font-semibold tracking-tight">Translate any article</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Paste a URL or article text. We turn it into 3-5 usable tips for your role and tools.
+                Paste a URL or article text. We scrape it cleanly and turn it into 3-5 usable tips for your role.
               </p>
               <Button asChild variant="link" className="mt-2 h-auto p-0 text-primary">
                 <Link href="/translate">
@@ -208,7 +210,7 @@ export default async function HomePage() {
             <div>
               <h3 className="text-lg font-semibold tracking-tight">Ask a question</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                &quot;How do I use Copilot to summarize a Teams meeting?&quot; Get prompts and steps in seconds.
+                Get prompts grounded in current docs and articles &mdash; with sources cited on every answer.
               </p>
               <Button asChild variant="link" className="mt-2 h-auto p-0 text-primary">
                 <Link href="/ask">

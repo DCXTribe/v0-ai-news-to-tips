@@ -14,6 +14,7 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [tips, setTips] = useState<Tip[] | null>(null)
+  const [source, setSource] = useState<{ url: string; title: string; publisher: string | null } | null>(null)
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,6 +25,7 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
     setLoading(true)
     setSummary(null)
     setTips(null)
+    setSource(null)
     try {
       const res = await fetch("/api/translate", {
         method: "POST",
@@ -34,9 +36,14 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
         const j = await res.json().catch(() => ({}))
         throw new Error(j.error ?? "Failed")
       }
-      const data = (await res.json()) as { summary: string; tips: Tip[] }
+      const data = (await res.json()) as {
+        summary: string
+        tips: Tip[]
+        source: { url: string; title: string; publisher: string | null } | null
+      }
       setSummary(data.summary)
       setTips(data.tips)
+      setSource(data.source)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -100,6 +107,20 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
         <div className="rounded-md border border-border bg-accent/30 p-4">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Summary</div>
           <p className="text-sm leading-relaxed">{summary}</p>
+          {source && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Grounded in:{" "}
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                {source.title}
+              </a>
+              {source.publisher ? ` · ${source.publisher}` : ""}
+            </p>
+          )}
         </div>
       )}
 
