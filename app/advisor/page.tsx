@@ -1,22 +1,25 @@
+import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { AdvisorForm } from "@/components/advisor-form"
 import { RecentActivity } from "@/components/recent-activity"
-import { Compass } from "lucide-react"
+import { Compass, Settings2, Award, ArrowUpRight, AlertTriangle } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { toolLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
 
-const SAMPLE_TASKS = [
-  "Summarize a 50-page PDF report into 5 bullet points",
-  "Draft a sales email to a CFO based on a LinkedIn profile",
-  "Analyze a CSV with 5,000 rows and find anomalies",
-  "Brainstorm a Q3 marketing campaign with image mockups",
-  "Research a competitor's pricing changes this month",
-]
-
+/**
+ * Advisor page — purpose: pick the best tool for a task.
+ *
+ * The "constraints" being fed to the algorithm (the user's toolkit) are
+ * surfaced prominently in the header — these decide what we can recommend,
+ * so they should be visible, scannable, and editable in one click.
+ *
+ * The "what you'll get" preview shows the 3-pane output structure (Best /
+ * Alternatives / Avoid) so users know what to expect.
+ */
 export default async function AdvisorPage() {
   const supabase = await createClient()
   const {
@@ -37,24 +40,68 @@ export default async function AdvisorPage() {
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
       <SiteHeader />
       <main className="flex-1">
-        <section className="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-14">
-          <div className="mb-8 flex flex-col gap-3">
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">Advisor</p>
-            <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Which AI tool should I use for this?
-            </h1>
-            <p className="text-pretty leading-relaxed text-muted-foreground">
+        <section className="mx-auto max-w-3xl px-4 py-8 md:px-6 md:py-12">
+          {/* Header — page identity */}
+          <div className="mb-8 flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-brand-soft)]">
+                <Compass className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advisor</p>
+                <h1 className="font-display text-balance text-3xl font-semibold leading-[1.15] md:text-4xl">
+                  Which AI tool should I use for this?
+                </h1>
+              </div>
+            </div>
+            <p className="text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
               Describe a task. We&apos;ll pick the best tool from your toolkit, give you a copy-paste prompt, and
-              flag the tools you should avoid for this specific job &mdash; with sources.
+              flag the tools you should avoid &mdash; with sources.
             </p>
-            {userTools.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Your toolkit:</span>{" "}
-                {userTools.map((t) => toolLabel(t)).join(" · ")}
+          </div>
+
+          {/* Toolkit chip strip — the constraints. The algorithm only picks
+              from these tools, so they need to be visible and editable. */}
+          <div className="mb-6 rounded-2xl border border-border/60 bg-surface-low/60 p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+                Choosing from {userTools.length > 0 && <span className="text-muted-foreground">({userTools.length})</span>}
+              </p>
+              <Link
+                href="/onboarding?next=/advisor"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              >
+                <Settings2 className="h-3 w-3" aria-hidden />
+                {userTools.length > 0 ? "Edit toolkit" : "Set up toolkit"}
+              </Link>
+            </div>
+            {userTools.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {userTools.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground"
+                  >
+                    {toolLabel(t)}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                You haven&apos;t set up your toolkit yet, so we&apos;ll recommend from all major AI tools. Add your
+                tools so we only suggest ones you can actually use.
               </p>
             )}
           </div>
-          <AdvisorForm isAuthed={!!user} samples={SAMPLE_TASKS} hasToolkit={userTools.length > 0} />
+
+          {/* What you'll get — 3-pane preview of the recommendation structure */}
+          <ul className="mb-8 grid grid-cols-3 gap-2 text-xs sm:gap-3">
+            <Pane Icon={Award} label="Best pick" tone="success" hint="with prompt" />
+            <Pane Icon={ArrowUpRight} label="Alternatives" tone="brand" hint="when to use" />
+            <Pane Icon={AlertTriangle} label="Avoid" tone="warn" hint="why not" />
+          </ul>
+
+          <AdvisorForm isAuthed={!!user} hasToolkit={userTools.length > 0} />
 
           <RecentActivity
             kind="advisor"
@@ -67,5 +114,48 @@ export default async function AdvisorPage() {
       <SiteFooter />
       <MobileBottomNav />
     </div>
+  )
+}
+
+function Pane({
+  Icon,
+  label,
+  hint,
+  tone,
+}: {
+  Icon: typeof Award
+  label: string
+  hint: string
+  tone: "success" | "brand" | "warn"
+}) {
+  // Each pane uses a single thematic accent that maps to the AdvisorResult
+  // sections, so users see the visual language before the recommendation arrives.
+  const styles =
+    tone === "success"
+      ? {
+          card: "border-[color:var(--success)]/30 bg-[color:var(--success-soft)]",
+          iconBg: "bg-[color:var(--success)]/15 text-[color:var(--success)]",
+          label: "text-[color:var(--success)]",
+        }
+      : tone === "warn"
+      ? {
+          card: "border-amber-200/70 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/30",
+          iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+          label: "text-amber-700 dark:text-amber-300",
+        }
+      : {
+          card: "border-primary/25 bg-primary/5",
+          iconBg: "bg-primary/15 text-primary",
+          label: "text-primary",
+        }
+
+  return (
+    <li className={`flex flex-col gap-1 rounded-xl border p-3 ${styles.card}`}>
+      <div className={`grid h-7 w-7 place-items-center rounded-lg ${styles.iconBg}`}>
+        <Icon className="h-3.5 w-3.5" aria-hidden />
+      </div>
+      <p className={`mt-0.5 text-[11px] font-semibold uppercase tracking-wide ${styles.label}`}>{label}</p>
+      <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>
+    </li>
   )
 }

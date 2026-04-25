@@ -3,10 +3,20 @@ import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { AskForm } from "@/components/ask-form"
 import { RecentActivity } from "@/components/recent-activity"
-import { MessageCircleQuestion } from "lucide-react"
+import { MessageCircleQuestion, Globe2, Quote, Youtube, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { roleLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
+
+/**
+ * Ask page — purpose: free-form question, web-grounded answer.
+ *
+ * The differentiator vs Unpack/Advisor is that Ask searches the live web in
+ * real time and cites every claim. The header surfaces this with a "real-time
+ * sources" strip showing the three things we ground in: web articles, citation
+ * quotes, optional video walkthroughs.
+ */
 
 const SAMPLE_QUESTIONS = [
   "How do I use ChatGPT to clean up an Excel spreadsheet?",
@@ -22,21 +32,55 @@ export default async function AskPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  let role: string | null = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from("ai_daily_profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+    role = profile?.role ?? null
+  }
+
   return (
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
       <SiteHeader />
       <main className="flex-1">
-        <section className="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-14">
-          <div className="mb-8 flex flex-col gap-3">
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">Ask</p>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Ask anything. Get prompts that actually work.
-            </h1>
-            <p className="text-pretty leading-relaxed text-muted-foreground">
-              Describe a task or a question. We&apos;ll generate practical tips with copy-paste prompts you can use in
-              Copilot, ChatGPT, Gemini, Claude or Perplexity.
+        <section className="mx-auto max-w-3xl px-4 py-8 md:px-6 md:py-12">
+          {/* Header — page identity */}
+          <div className="mb-8 flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+                <MessageCircleQuestion className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Ask</p>
+                <h1 className="font-display text-balance text-3xl font-semibold leading-[1.15] md:text-4xl">
+                  Ask anything. Get prompts that actually work.
+                </h1>
+              </div>
+            </div>
+            <p className="text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+              Describe a task or question. We&apos;ll search the web in real time and ground every tip in cited
+              sources you can verify.
             </p>
+            {user && role && (
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs">
+                <Briefcase className="h-3 w-3 text-primary" aria-hidden />
+                <span className="text-muted-foreground">Tailored for:</span>
+                <span className="font-medium text-foreground">{roleLabel(role)}</span>
+              </div>
+            )}
           </div>
+
+          {/* Real-time sources strip — what makes Ask different from Unpack/Advisor.
+              Visually communicates the grounding without long copy. */}
+          <div className="mb-8 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-surface-low/60 p-3 sm:gap-3 md:p-4">
+            <Cue Icon={Globe2} label="Live web" hint="searched on the fly" />
+            <Cue Icon={Quote} label="Cited" hint="every claim sourced" />
+            <Cue Icon={Youtube} label="Videos" hint="optional walkthroughs" />
+          </div>
+
           <AskForm isAuthed={!!user} samples={SAMPLE_QUESTIONS} />
 
           <RecentActivity
@@ -49,6 +93,20 @@ export default async function AskPage() {
       </main>
       <SiteFooter />
       <MobileBottomNav />
+    </div>
+  )
+}
+
+function Cue({ Icon, label, hint }: { Icon: typeof Globe2; label: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-card p-2.5 md:p-3">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-primary">
+        <Icon className="h-4 w-4" aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-foreground md:text-sm">{label}</p>
+        <p className="hidden truncate text-[11px] text-muted-foreground md:block">{hint}</p>
+      </div>
     </div>
   )
 }
