@@ -4,9 +4,9 @@ import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { AdvisorForm } from "@/components/advisor-form"
 import { RecentActivity } from "@/components/recent-activity"
-import { Compass, Settings2, Award, ArrowUpRight, AlertTriangle } from "lucide-react"
+import { Compass, Award, ArrowUpRight, AlertTriangle, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { toolLabel } from "@/lib/constants"
+import { toolLabel, roleLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
 
@@ -27,13 +27,15 @@ export default async function AdvisorPage() {
   } = await supabase.auth.getUser()
 
   let userTools: string[] = []
+  let role: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("ai_daily_profiles")
-      .select("tools")
+      .select("tools, role")
       .eq("id", user.id)
       .maybeSingle()
     userTools = (profile?.tools as string[] | null) ?? []
+    role = (profile?.role as string | null) ?? null
   }
 
   return (
@@ -59,25 +61,27 @@ export default async function AdvisorPage() {
               Describe a task. We&apos;ll pick the best tool from your toolkit, give you a copy-paste prompt, and
               flag the tools you should avoid &mdash; with sources.
             </p>
+            {role && (
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs">
+                <Briefcase className="h-3 w-3 text-primary" aria-hidden />
+                <span className="text-muted-foreground">Tailored for:</span>
+                <span className="font-medium text-foreground">{roleLabel(role)}</span>
+              </div>
+            )}
           </div>
 
           {/* Toolkit chip strip — the constraints. The algorithm only picks
-              from these tools, so they need to be visible and editable.
-              Header stacks vertically on the smallest screens to keep both the
-              "Choosing from" label and the "Edit toolkit" CTA fully readable. */}
+              from these tools, so they need to be visible.
+              Editing the toolkit lives in /onboarding (Edit preferences in the
+              user-menu) — there's no separate "Edit toolkit" link here, since
+              having two paths to the same screen creates confusion about
+              whether they go to different surfaces. The empty state still
+              offers a contextual link because there's no other reasonable next
+              action when the toolkit is unset. */}
           <div className="mb-6 rounded-2xl border border-border/60 bg-surface-low/60 p-4 md:p-5">
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
-                Choosing from {userTools.length > 0 && <span className="text-muted-foreground">({userTools.length})</span>}
-              </p>
-              <Link
-                href="/onboarding?next=/advisor"
-                className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-              >
-                <Settings2 className="h-3 w-3" aria-hidden />
-                {userTools.length > 0 ? "Edit toolkit" : "Set up toolkit"}
-              </Link>
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+              Choosing from {userTools.length > 0 && <span className="text-muted-foreground">({userTools.length})</span>}
+            </p>
             {userTools.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {userTools.map((t) => (
@@ -90,10 +94,18 @@ export default async function AdvisorPage() {
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                You haven&apos;t set up your toolkit yet, so we&apos;ll recommend from all major AI tools. Add your
-                tools so we only suggest ones you can actually use.
-              </p>
+              <div className="mt-2">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  You haven&apos;t set up your toolkit yet, so we&apos;ll recommend from all major AI tools.{" "}
+                  <Link
+                    href="/onboarding?next=/advisor"
+                    className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+                  >
+                    Set up your toolkit
+                  </Link>{" "}
+                  so we only suggest ones you can actually use.
+                </p>
+              </div>
             )}
           </div>
 
