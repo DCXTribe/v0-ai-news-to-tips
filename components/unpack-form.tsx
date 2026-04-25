@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { toast } from "sonner"
-import { Loader2, Wand2 } from "lucide-react"
+import { Loader2, Sparkles, Link2 } from "lucide-react"
 
-export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasProfile: boolean }) {
+export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasProfile: boolean }) {
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
@@ -27,7 +27,7 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
     setTips(null)
     setSource(null)
     try {
-      const res = await fetch("/api/translate", {
+      const res = await fetch("/api/unpack", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ input }),
@@ -53,18 +53,21 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
 
   return (
     <div className="flex flex-col gap-8">
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardContent className="pt-6">
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="article-input">Article URL or pasted text</Label>
+              <Label htmlFor="article-input" className="flex items-center gap-1.5 text-sm font-medium">
+                <Link2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                Article URL or pasted text
+              </Label>
               <Textarea
                 id="article-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 rows={8}
                 placeholder="https://openai.com/blog/... or paste the article content here"
-                className="resize-y"
+                className="resize-y rounded-xl"
               />
               <p className="text-xs text-muted-foreground">
                 Tip: pasting the full text works better than a URL behind a paywall.
@@ -85,16 +88,16 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
                   to personalize results.
                 </p>
               )}
-              <Button type="submit" disabled={loading} className="ml-auto">
+              <Button type="submit" disabled={loading} size="lg" className="ml-auto rounded-xl">
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    Generating...
+                    Unpacking...
                   </>
                 ) : (
                   <>
-                    <Wand2 className="h-4 w-4" aria-hidden />
-                    Translate into tips
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    Unpack into tips
                   </>
                 )}
               </Button>
@@ -104,12 +107,14 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
       </Card>
 
       {summary && (
-        <div className="rounded-md border border-border bg-accent/30 p-4">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Summary</div>
+        <div className="rounded-2xl border border-border/70 bg-accent/40 p-5">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+            What this article said
+          </div>
           <p className="text-sm leading-relaxed">{summary}</p>
           {source && (
             <p className="mt-2 text-xs text-muted-foreground">
-              Grounded in:{" "}
+              Source:{" "}
               <a
                 href={source.url}
                 target="_blank"
@@ -126,7 +131,7 @@ export function TranslateForm({ isAuthed, hasProfile }: { isAuthed: boolean; has
 
       {tips && tips.length > 0 && (
         <div>
-          <h2 className="mb-4 text-xl font-semibold tracking-tight">
+          <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">
             {tips.length} tip{tips.length === 1 ? "" : "s"} for you
           </h2>
           <div className="grid gap-6 md:grid-cols-2">

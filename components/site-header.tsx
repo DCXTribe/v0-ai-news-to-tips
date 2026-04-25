@@ -25,7 +25,7 @@ export async function SiteHeader() {
             <Link href="/">Today</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="rounded-full">
-            <Link href="/translate">Translate</Link>
+            <Link href="/unpack">Unpack</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/ask">Ask</Link>
