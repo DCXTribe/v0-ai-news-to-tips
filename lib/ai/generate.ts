@@ -55,6 +55,51 @@ export type GeneratedTip = z.infer<typeof tipSchema>
 export type GeneratedFeedItem = z.infer<typeof feedItemSchema>
 export type GeneratedCitation = z.infer<typeof citationSchema>
 
+// ---------- Tool Advisor schemas ----------
+
+const toolPickSchema = z.object({
+  tool: z
+    .string()
+    .describe(
+      "Tool id from this list (use exactly one of these strings): " + TOOLS.map((t) => t.value).join(", "),
+    ),
+  reason: z.string().describe("Why this tool fits the task. 1-2 plain-English sentences."),
+})
+
+const advisorSchema = z.object({
+  task_summary: z.string().describe("One sentence rephrasing of the user's task in plain language."),
+  best_pick: toolPickSchema.extend({
+    prompt: z
+      .string()
+      .describe("Copy-paste ready prompt for this tool. Use [BRACKETED] placeholders for the user's content."),
+    watch_outs: z
+      .array(z.string())
+      .describe("0-3 short heads-ups about limits, file size, privacy, etc. Empty array if none."),
+  }),
+  alternatives: z
+    .array(
+      toolPickSchema.extend({
+        when_to_pick_this: z
+          .string()
+          .describe("One sentence on when this alternative is better than the best pick."),
+      }),
+    )
+    .describe("0-2 strong alternatives. Empty array if there are no equally good options."),
+  avoid: z
+    .array(
+      z.object({
+        tool: z.string().describe("Tool id from the same list, that the user should NOT use for this task."),
+        reason: z.string().describe("One sentence explaining the limitation."),
+      }),
+    )
+    .describe("0-3 tools to avoid for this specific task. Empty array if none. Be specific, not generic."),
+  citations: z
+    .array(citationSchema)
+    .describe("0-4 citations. ONLY use URLs from the provided sources."),
+})
+
+export type GeneratedAdvisorOutput = z.infer<typeof advisorSchema>
+
 // ---------- System prompt ----------
 
 const SYSTEM_BASE = `You are an editor for "AI Daily", a publication that turns recent AI news into immediately usable tips for everyday office workers.
@@ -216,5 +261,75 @@ Generate 3-5 immediately usable tips that answer their question with copy-paste 
     ...t,
     citations: t.citations.filter((c) => allowedUrls.has(c.url)),
   }))
+  return output
+}
+
+// ---------- 4. Tool Advisor: recommend the best AI tool for a task ----------
+
+export async function generateToolRecommendation(args: {
+  task: string
+  searchAnswer: string | null
+  searchResults: TavilyResult[]
+  availableTools?: string[] | null // user's onboarding selection
+  role?: string | null
+}) {
+  const { task, searchAnswer, searchResults, availableTools, role } = args
+  const roleLine = role ? `The reader's role is: ${ROLES.find((r) => r.value === role)?.label ?? role}.` : ""
+  const toolsLine =
+    availableTools && availableTools.length > 0
+      ? `The reader has access to ONLY these tools, recommend ONLY from this list: ${availableTools.join(", ")}. If none of them fit the task well, still pick the closest match and be honest about its limits in watch_outs.`
+      : `The reader has not specified which tools they own. You may recommend from any of: ${TOOLS.map((t) => t.value).join(", ")}.`
+
+  const allowedUrls = new Set(searchResults.map((r) => r.url))
+  const sourcesBlock = searchResults
+    .map(
+      (r, i) =>
+        `[${i + 1}] ${r.title}
+URL: ${r.url}
+${r.publishedDate ? `Date: ${r.publishedDate}` : ""}
+Snippet: ${r.content.slice(0, 600)}`,
+    )
+    .join("\n\n")
+
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: advisorSchema }),
+    system: `${SYSTEM_BASE}
+
+You are now in TOOL ADVISOR mode. Your job is to recommend which AI tool from the user's toolkit is the BEST fit for the task they described, with honest reasoning grounded in the sources provided.
+
+Tool Advisor rules (in addition to the base rules):
+- Be DECISIVE. Pick one best tool, don't hedge with "any of these works".
+- Be HONEST. If the user's free-tier tool can't do something well, say so in watch_outs.
+- Give SPECIFIC reasons tied to capability (file size limits, model strength, integrations, real-time web, image gen, etc.). Never use generic praise.
+- "Avoid" entries must be specific to THIS task, not generic ("ChatGPT Free has no internet" only if the task needs current info).
+- The prompt for the best pick must be tailored to that tool's strengths.
+- Use the same toolValue strings exactly as listed.`,
+    prompt: `The reader described this task: "${task}"
+
+${roleLine}
+${toolsLine}
+
+${searchAnswer ? `Search engine summary of the topic: "${searchAnswer}".` : ""}
+
+You MAY only cite URLs from this list:
+${Array.from(allowedUrls).join("\n")}
+
+Sources:
+${sourcesBlock}
+
+Recommend the single best tool for this task, give 0-2 alternatives with the situation in which to pick them instead, and 0-3 specific tools to avoid for this task with reasons. Provide a copy-paste prompt tailored to the best pick.`,
+  })
+
+  // Hard guards
+  output.citations = output.citations.filter((c) => allowedUrls.has(c.url))
+  // Strip recommendations for tools that aren't real
+  const validToolValues = new Set(TOOLS.map((t) => t.value))
+  if (!validToolValues.has(output.best_pick.tool)) {
+    // Fallback: pick first available tool to avoid downstream crashes
+    output.best_pick.tool = availableTools?.[0] ?? TOOLS[0].value
+  }
+  output.alternatives = output.alternatives.filter((a) => validToolValues.has(a.tool))
+  output.avoid = output.avoid.filter((a) => validToolValues.has(a.tool))
   return output
 }

@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { TipCard } from "@/components/tip-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles } from "lucide-react"
+import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles, Compass } from "lucide-react"
 import { getCachedFeed } from "@/lib/feed"
 
 // Note: no `force-dynamic`. The page is naturally dynamic because it reads
@@ -73,9 +73,9 @@ export default async function HomePage() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="w-full rounded-xl sm:w-auto">
-                  <Link href="/unpack">
-                    <PackageOpen className="h-4 w-4" aria-hidden />
-                    Unpack an article
+                  <Link href="/advisor">
+                    <Compass className="h-4 w-4" aria-hidden />
+                    Pick a tool
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="ghost" className="w-full rounded-xl sm:w-auto">
@@ -156,13 +156,16 @@ export default async function HomePage() {
           )}
         </section>
 
-        {/* CTA strip */}
+        {/* CTA strip — 4 surfaces: Unpack, Advisor (flagship), Ask, Library */}
         <section className="border-t border-border/60 bg-surface-low/50">
-          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-3 md:px-6">
+          <div className="mx-auto grid max-w-6xl gap-4 px-4 py-12 sm:gap-6 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-border/60 bg-card p-6">
-              <h3 className="text-lg font-semibold tracking-tight">Unpack any article</h3>
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-accent text-primary">
+                <PackageOpen className="h-4 w-4" aria-hidden />
+              </div>
+              <h3 className="text-lg font-semibold tracking-tight">Unpack an article</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Paste a URL or article text. We scrape it cleanly and unpack it into 3-5 usable tips for your role.
+                Paste a URL or article text. We scrape it cleanly and turn it into 3-5 usable tips for your role.
               </p>
               <Button asChild variant="link" className="mt-2 h-auto p-0 text-primary">
                 <Link href="/unpack">
@@ -170,7 +173,27 @@ export default async function HomePage() {
                 </Link>
               </Button>
             </div>
+            <div className="rounded-2xl border border-primary/25 bg-primary/5 p-6 shadow-[var(--shadow-brand-soft)]">
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+                <Compass className="h-4 w-4" aria-hidden />
+              </div>
+              <h3 className="text-lg font-semibold tracking-tight">
+                Pick the right tool <span className="text-primary">·</span> new
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Describe a task. We&apos;ll recommend the best AI from your toolkit, with a copy-paste prompt and what
+                to avoid.
+              </p>
+              <Button asChild variant="link" className="mt-2 h-auto p-0 text-primary">
+                <Link href="/advisor">
+                  Advisor <ArrowRight className="h-3 w-3" aria-hidden />
+                </Link>
+              </Button>
+            </div>
             <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-accent text-primary">
+                <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+              </div>
               <h3 className="text-lg font-semibold tracking-tight">Ask a question</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 Get prompts grounded in current docs and articles &mdash; with sources cited on every answer.
@@ -182,6 +205,9 @@ export default async function HomePage() {
               </Button>
             </div>
             <div className="rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-accent text-primary">
+                <BookOpen className="h-4 w-4" aria-hidden />
+              </div>
               <h3 className="text-lg font-semibold tracking-tight">Build your playbook</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 Save the tips you actually used. Keep a personal library of prompts that work for your job.

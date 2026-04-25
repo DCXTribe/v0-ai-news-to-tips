@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CalendarDays, PackageOpen, MessageSquare, BookMarked } from "lucide-react"
+import { CalendarDays, PackageOpen, MessageSquare, BookMarked, Compass } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Item = {
@@ -15,6 +15,7 @@ type Item = {
 const items: Item[] = [
   { href: "/", label: "Today", Icon: CalendarDays, match: (p) => p === "/" },
   { href: "/unpack", label: "Unpack", Icon: PackageOpen, match: (p) => p.startsWith("/unpack") },
+  { href: "/advisor", label: "Advisor", Icon: Compass, match: (p) => p.startsWith("/advisor") },
   { href: "/ask", label: "Ask", Icon: MessageSquare, match: (p) => p.startsWith("/ask") },
   { href: "/library", label: "Library", Icon: BookMarked, match: (p) => p.startsWith("/library") },
 ]

@@ -3,12 +3,12 @@ import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { TipCard, type Tip } from "@/components/tip-card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { type Tip } from "@/components/tip-card"
+import { LibraryTabs } from "@/components/library-tabs"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { History, Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp, ChevronRight } from "lucide-react"
+import { Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp, Compass } from "lucide-react"
 import { parseTimeSavedToMinutes, formatMinutes } from "@/lib/time"
 import { toolLabel } from "@/lib/constants"
 
@@ -84,6 +84,12 @@ export default async function LibraryPage() {
               </div>
               <div className="flex w-full gap-2 sm:w-auto">
                 <Button asChild variant="outline" size="sm" className="flex-1 rounded-xl sm:flex-initial">
+                  <Link href="/advisor">
+                    <Compass className="h-4 w-4" aria-hidden />
+                    <span>Advisor</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="flex-1 rounded-xl sm:flex-initial">
                   <Link href="/unpack">
                     <PackageOpen className="h-4 w-4" aria-hidden />
                     <span>Unpack</span>
@@ -149,73 +155,8 @@ export default async function LibraryPage() {
             </div>
           )}
 
-          {/* Tabs */}
-          <Tabs defaultValue="saved">
-            <TabsList className="w-full justify-start sm:w-auto">
-              <TabsTrigger value="saved" className="gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                Saved <span className="text-muted-foreground">({saves.length})</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5">
-                <History className="h-3.5 w-3.5" aria-hidden />
-                History <span className="text-muted-foreground">({history.length})</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="saved" className="mt-6">
-              {saves.length === 0 ? (
-                <EmptySaved />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-                  {saves.map(({ tip }) => (
-                    <TipCard key={tip.id} tip={tip} isAuthed isSaved />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="mt-6">
-              {history.length === 0 ? (
-                <EmptyHistory />
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {history.map((h) => (
-                    <li key={h.id}>
-                      <Link
-                        href={`/library/history/${h.id}`}
-                        className="group flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[var(--shadow-brand-soft)] sm:p-5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                              {h.kind === "paste" ? "Article" : "Question"}
-                            </span>
-                            <span>{new Date(h.created_at).toLocaleString()}</span>
-                            <span aria-hidden>·</span>
-                            <span>
-                              {h.tip_ids?.length ?? 0} tip{(h.tip_ids?.length ?? 0) === 1 ? "" : "s"}
-                            </span>
-                          </div>
-                          <p className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">
-                            {h.input}
-                          </p>
-                          {h.summary && (
-                            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                              {h.summary}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight
-                          className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary"
-                          aria-hidden
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </TabsContent>
-          </Tabs>
+          {/* Tabs (client) — saved + history with search */}
+          <LibraryTabs saves={saves} history={history} />
         </section>
       </main>
       <SiteFooter />
@@ -268,52 +209,4 @@ function StatCard({
   )
 }
 
-function EmptySaved() {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-surface-low/60 px-6 py-12 text-center">
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-accent text-primary">
-        <BookmarkCheck className="h-5 w-5" aria-hidden />
-      </div>
-      <div className="max-w-sm">
-        <p className="font-semibold">Your playbook is empty</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Browse{" "}
-          <Link href="/" className="font-medium text-foreground underline-offset-4 hover:underline">
-            today&apos;s tips
-          </Link>{" "}
-          and tap <span className="font-medium text-foreground">Save</span> to keep the ones that work for your job.
-        </p>
-      </div>
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-        <Button asChild size="sm" className="rounded-xl">
-          <Link href="/">
-            <Sparkles className="h-4 w-4" aria-hidden />
-            See today&apos;s tips
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm" className="rounded-xl">
-          <Link href="/unpack">
-            <PackageOpen className="h-4 w-4" aria-hidden />
-            Unpack an article
-          </Link>
-        </Button>
-      </div>
-    </div>
-  )
-}
 
-function EmptyHistory() {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-surface-low/60 px-6 py-12 text-center">
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-surface-high text-muted-foreground">
-        <History className="h-5 w-5" aria-hidden />
-      </div>
-      <div className="max-w-sm">
-        <p className="font-semibold">No activity yet</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Your past unpacks and questions will appear here.
-        </p>
-      </div>
-    </div>
-  )
-}
