@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { TranslateForm } from "@/components/translate-form"
 import { createClient } from "@/lib/supabase/server"
 
@@ -24,7 +25,7 @@ export default async function TranslatePage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex min-h-svh flex-col pb-20 md:pb-0">
       <SiteHeader />
       <main className="flex-1">
         <section className="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-14">
@@ -42,6 +43,7 @@ export default async function TranslatePage() {
         </section>
       </main>
       <SiteFooter />
+      <MobileBottomNav />
     </div>
   )
 }

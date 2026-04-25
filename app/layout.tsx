@@ -1,11 +1,20 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "AI Daily — Turn AI news into tips you can use today",
@@ -22,13 +31,17 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport = {
+  themeColor: "#faf8ff",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="en" className={`${inter.variable} ${jetbrains.variable} bg-background`}>
       <body className="font-sans antialiased min-h-svh">
         {children}
         <Toaster />
