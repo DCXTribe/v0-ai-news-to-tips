@@ -4,8 +4,13 @@ import { tavilySearch } from "@/lib/mcp/tavily"
 import { scrapeUrl } from "@/lib/mcp/firecrawl"
 import { generateTipFromNewsItem } from "@/lib/ai/generate"
 
-export const maxDuration = 300 // 5 min — multiple sources, multiple LLM calls
+// 60s is the max allowed on the Vercel Hobby plan. We process sources sequentially
+// and cap to whatever fits comfortably in this window (see SOURCE_LIMIT below).
+// If you upgrade to Pro, you can safely raise this to 300.
+export const maxDuration = 60
 export const dynamic = "force-dynamic"
+
+const SOURCE_LIMIT = 3 // process up to N sources per cron invocation
 
 type NewsSource = {
   id: string
@@ -86,8 +91,10 @@ export async function GET(req: Request) {
   const inserted: Array<{ source: string; headline: string }> = []
   const failed: Array<{ source: string; error: string }> = []
 
-  // Limit to first 6 sources per run to stay within timeouts
-  for (const source of sources.slice(0, 6) as NewsSource[]) {
+  // Limit how many sources we process per invocation to stay under maxDuration.
+  // Sources we don't reach today will be picked up tomorrow (and the housekeeping
+  // step above marks anything older than 30 days as stale anyway).
+  for (const source of sources.slice(0, SOURCE_LIMIT) as NewsSource[]) {
     try {
       const articleUrl = await findRecentArticleFor(source)
       if (!articleUrl) {

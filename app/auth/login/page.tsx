@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { Suspense, useState } from "react"
 
-export default function Page() {
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +39,54 @@ export default function Page() {
   }
 
   return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Welcome back</CardTitle>
+        <CardDescription>Sign in to your AI Daily account</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleLogin}>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@work.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </div>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            {"Don't have an account? "}
+            <Link href="/auth/sign-up" className="font-medium text-foreground underline-offset-4 hover:underline">
+              Sign up
+            </Link>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function Page() {
+  return (
     <div className="flex min-h-svh w-full items-center justify-center bg-muted/30 p-6 md:p-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
@@ -46,49 +94,9 @@ export default function Page() {
             AI Daily
           </Link>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your AI Daily account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin}>
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@work.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign in"}
-                </Button>
-              </div>
-              <div className="mt-4 text-center text-sm text-muted-foreground">
-                {"Don't have an account? "}
-                <Link href="/auth/sign-up" className="font-medium text-foreground underline-offset-4 hover:underline">
-                  Sign up
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <Suspense fallback={<div className="text-center text-sm text-muted-foreground">Loading...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   )
