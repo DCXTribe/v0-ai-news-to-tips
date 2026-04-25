@@ -63,9 +63,11 @@ export function TodayFilteredFeed({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search today's tips by keyword, prompt, or tool..."
+              // Shorter placeholder on small screens so it never gets clipped.
+              // The leading search icon already telegraphs the input's purpose.
+              placeholder="Search tips, prompts, or tools..."
               className="rounded-xl pl-9"
-              aria-label="Search tips"
+              aria-label="Search today's tips by keyword, prompt, or tool"
             />
           </div>
           {userTools.length > 0 && (
@@ -88,7 +90,7 @@ export function TodayFilteredFeed({
         </div>
 
         {categories.length > 0 && (
-          <div className="-mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
+          <div className="scrollbar-hide -mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
             <button
               type="button"
               onClick={() => setActiveCategory(null)}

@@ -74,8 +74,9 @@ export default async function AskPage() {
           </div>
 
           {/* Real-time sources strip — what makes Ask different from Unpack/Advisor.
-              Visually communicates the grounding without long copy. */}
-          <div className="mb-8 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-surface-low/60 p-3 sm:gap-3 md:p-4">
+              Mobile: vertical stack so each cue's full label + hint stays readable.
+              sm+: horizontal 3-col grid. */}
+          <div className="mb-8 flex flex-col gap-2 rounded-2xl border border-border/60 bg-surface-low/60 p-3 sm:grid sm:grid-cols-3 sm:gap-3 md:p-4">
             <Cue Icon={Globe2} label="Live web" hint="searched on the fly" />
             <Cue Icon={Quote} label="Cited" hint="every claim sourced" />
             <Cue Icon={Youtube} label="Videos" hint="optional walkthroughs" />
@@ -99,13 +100,13 @@ export default async function AskPage() {
 
 function Cue({ Icon, label, hint }: { Icon: typeof Globe2; label: string; hint: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-card p-2.5 md:p-3">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-primary">
+    <div className="flex items-center gap-3 rounded-xl bg-card p-3">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-primary">
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-semibold text-foreground md:text-sm">{label}</p>
-        <p className="hidden truncate text-[11px] text-muted-foreground md:block">{hint}</p>
+        <p className="text-sm font-semibold leading-tight text-foreground">{label}</p>
+        <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>
       </div>
     </div>
   )

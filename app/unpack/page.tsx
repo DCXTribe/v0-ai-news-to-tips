@@ -61,9 +61,10 @@ export default async function UnpackPage() {
           </div>
 
           {/* How it works — 3-step visual rail. Sets first-time user expectations:
-              they paste, we scrape & extract, they get tips. The arrows make
-              the pipeline obvious without explanatory copy. */}
-          <ol className="mb-8 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-surface-low/60 p-3 md:p-4">
+              they paste, we scrape & extract, they get tips.
+              Mobile: vertical stack so each step's full label + hint is readable.
+              sm+: horizontal 3-col grid with subtle connector arrows. */}
+          <ol className="mb-8 flex flex-col gap-2 rounded-2xl border border-border/60 bg-surface-low/60 p-3 sm:grid sm:grid-cols-3 sm:gap-2 md:p-4">
             <Step n={1} Icon={Link2} label="Paste URL" hint="or full text" />
             <Step n={2} Icon={PackageOpen} label="We unpack" hint="scrape + extract" />
             <Step n={3} Icon={Sparkles} label="Get tips" hint="ready to use" last />
@@ -99,18 +100,16 @@ function Step({
   last?: boolean
 }) {
   return (
-    <li className="relative flex items-center gap-2 rounded-xl bg-card p-2.5 md:p-3">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-primary">
+    <li className="relative flex items-center gap-3 rounded-xl bg-card p-3">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-primary">
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Step {n}
-          </span>
-        </div>
-        <p className="truncate text-xs font-semibold text-foreground md:text-sm">{label}</p>
-        <p className="hidden truncate text-[11px] text-muted-foreground md:block">{hint}</p>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step {n}
+        </span>
+        <p className="text-sm font-semibold leading-tight text-foreground">{label}</p>
+        <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>
       </div>
       {!last && (
         <span

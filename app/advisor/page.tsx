@@ -61,15 +61,17 @@ export default async function AdvisorPage() {
           </div>
 
           {/* Toolkit chip strip — the constraints. The algorithm only picks
-              from these tools, so they need to be visible and editable. */}
+              from these tools, so they need to be visible and editable.
+              Header stacks vertically on the smallest screens to keep both the
+              "Choosing from" label and the "Edit toolkit" CTA fully readable. */}
           <div className="mb-6 rounded-2xl border border-border/60 bg-surface-low/60 p-4 md:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
                 Choosing from {userTools.length > 0 && <span className="text-muted-foreground">({userTools.length})</span>}
               </p>
               <Link
                 href="/onboarding?next=/advisor"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+                className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
               >
                 <Settings2 className="h-3 w-3" aria-hidden />
                 {userTools.length > 0 ? "Edit toolkit" : "Set up toolkit"}
@@ -94,12 +96,28 @@ export default async function AdvisorPage() {
             )}
           </div>
 
-          {/* What you'll get — 3-pane preview of the recommendation structure */}
-          <ul className="mb-8 grid grid-cols-3 gap-2 text-xs sm:gap-3">
-            <Pane Icon={Award} label="Best pick" tone="success" hint="with prompt" />
-            <Pane Icon={ArrowUpRight} label="Alternatives" tone="brand" hint="when to use" />
-            <Pane Icon={AlertTriangle} label="Avoid" tone="warn" hint="why not" />
-          </ul>
+          {/* What you'll get — 3-pane preview of the recommendation structure.
+              On phones the elaborate cards crowded each other; we collapse to
+              a single compact bar showing the three sections inline. The cards
+              return at sm+ where the width supports them. */}
+          <div className="mb-8">
+            <div
+              role="presentation"
+              aria-label="What you'll get"
+              className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-surface-low/60 px-3 py-2.5 text-[11px] sm:hidden"
+            >
+              <CompactPane Icon={Award} label="Best" tone="success" />
+              <span aria-hidden className="h-3 w-px bg-border" />
+              <CompactPane Icon={ArrowUpRight} label="Alternatives" tone="brand" />
+              <span aria-hidden className="h-3 w-px bg-border" />
+              <CompactPane Icon={AlertTriangle} label="Avoid" tone="warn" />
+            </div>
+            <ul className="hidden grid-cols-3 gap-3 text-xs sm:grid">
+              <Pane Icon={Award} label="Best pick" tone="success" hint="with prompt" />
+              <Pane Icon={ArrowUpRight} label="Alternatives" tone="brand" hint="when to use" />
+              <Pane Icon={AlertTriangle} label="Avoid" tone="warn" hint="why not" />
+            </ul>
+          </div>
 
           <AdvisorForm isAuthed={!!user} hasToolkit={userTools.length > 0} />
 
@@ -114,6 +132,31 @@ export default async function AdvisorPage() {
       <SiteFooter />
       <MobileBottomNav />
     </div>
+  )
+}
+
+function CompactPane({
+  Icon,
+  label,
+  tone,
+}: {
+  Icon: typeof Award
+  label: string
+  tone: "success" | "brand" | "warn"
+}) {
+  // Mobile-only inline version. No background card — just the icon + label
+  // sharing one row. Used when the 3-card layout doesn't fit at phone widths.
+  const color =
+    tone === "success"
+      ? "text-[color:var(--success)]"
+      : tone === "warn"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-primary"
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1.5 ${color}`}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="truncate font-semibold">{label}</span>
+    </span>
   )
 }
 
