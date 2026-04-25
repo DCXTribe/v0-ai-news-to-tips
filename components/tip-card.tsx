@@ -67,12 +67,12 @@ export function TipCard({
   const showSource = Boolean(tip.source_url && tip.source_url !== "user-pasted")
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_8px_30px_rgba(184,0,53,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(184,0,53,0.08)]">
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-brand-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-brand)]">
       {/* Top meta strip */}
       <header className="flex flex-col gap-2.5 border-b border-border/60 bg-surface-low/60 px-4 py-3 sm:px-5 sm:py-4">
         <div className="flex flex-wrap items-center gap-1.5">
           {newsCategory && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent-foreground">
               <Sparkles className="h-3 w-3" aria-hidden />
               {newsCategory}
             </span>
@@ -96,7 +96,9 @@ export function TipCard({
             </Badge>
           )}
           {tip.time_saved && (
-            <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <span
+              className="ml-auto inline-flex items-center gap-1 rounded-full bg-[color:var(--success-soft)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--success)]"
+            >
               <Clock className="h-3 w-3" aria-hidden />
               Saves {tip.time_saved}
             </span>
@@ -134,7 +136,7 @@ export function TipCard({
         {tip.scenario && (
           <div className="rounded-2xl border border-border/60 bg-surface-low/70 p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-highest text-primary sm:h-10 sm:w-10">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-foreground sm:h-10 sm:w-10">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
               </div>
               <div className="min-w-0 flex-1">
@@ -147,7 +149,7 @@ export function TipCard({
           </div>
         )}
 
-        {/* Without AI / With AI comparison — full text, no truncation */}
+        {/* Without AI / With AI comparison — full text, sage success accent */}
         {(tip.before_text || tip.after_text) && (
           <div className="flex flex-col gap-2.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
@@ -168,16 +170,18 @@ export function TipCard({
                 </div>
               )}
               {tip.after_text && (
-                <div className="relative flex gap-3 overflow-hidden rounded-xl border border-primary/20 bg-primary/5 px-4 py-3.5 shadow-[0_4px_20px_rgba(184,0,53,0.05)]">
-                  <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden />
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <div className="relative flex gap-3 overflow-hidden rounded-xl border border-[color:var(--success)]/25 bg-[color:var(--success-soft)] px-4 py-3.5">
+                  <span className="absolute inset-y-0 left-0 w-1 bg-[color:var(--success)]" aria-hidden />
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[color:var(--success)]/15 text-[color:var(--success)]">
                     <Wand2 className="h-3.5 w-3.5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-0.5 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">With AI</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--success)]">
+                        With AI
+                      </span>
                       {tip.time_saved && (
-                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        <span className="shrink-0 rounded-full bg-[color:var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--success)]">
                           {tip.time_saved}
                         </span>
                       )}

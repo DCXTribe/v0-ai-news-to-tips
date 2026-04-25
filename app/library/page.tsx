@@ -99,7 +99,9 @@ export default async function LibraryPage() {
             </div>
           </div>
 
-          {/* Stats grid */}
+          {/* Stats grid — time-saved values use sage success accent so the
+              "value of AI" story has its own visual identity, separate from
+              brand/coral CTAs. */}
           <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard
               icon={<Clock className="h-4 w-4" aria-hidden />}
@@ -110,13 +112,14 @@ export default async function LibraryPage() {
                   ? `Across ${tipsWithTimeSaved} tip${tipsWithTimeSaved === 1 ? "" : "s"} with estimates`
                   : "Save tips with time estimates"
               }
-              accent
+              tone="success"
             />
             <StatCard
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
               label="If you use weekly"
               value={`~${formatMinutes(monthlyMinutes)}/mo`}
               hint="Estimated monthly savings"
+              tone="success"
             />
             <StatCard
               icon={<BookmarkCheck className="h-4 w-4" aria-hidden />}
@@ -216,35 +219,40 @@ function StatCard({
   label,
   value,
   hint,
-  accent,
+  tone = "neutral",
 }: {
   icon: React.ReactNode
   label: string
   value: string
   hint: string
-  accent?: boolean
+  tone?: "neutral" | "success" | "primary"
 }) {
+  const containerClass =
+    tone === "success"
+      ? "border-[color:var(--success)]/25 bg-[color:var(--success-soft)]"
+      : tone === "primary"
+        ? "border-primary/20 bg-primary/5"
+        : "border-border/60 bg-card"
+  const accentClass =
+    tone === "success"
+      ? "text-[color:var(--success)]"
+      : tone === "primary"
+        ? "text-primary"
+        : "text-muted-foreground"
+  const valueClass =
+    tone === "success"
+      ? "text-[color:var(--success)]"
+      : tone === "primary"
+        ? "text-primary"
+        : "text-foreground"
+
   return (
-    <div
-      className={
-        "flex flex-col gap-1.5 rounded-2xl border p-4 shadow-sm sm:gap-2 sm:p-5 " +
-        (accent
-          ? "border-primary/20 bg-primary/5"
-          : "border-border/60 bg-card")
-      }
-    >
-      <div
-        className={
-          "flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide " +
-          (accent ? "text-primary" : "text-muted-foreground")
-        }
-      >
+    <div className={`flex flex-col gap-1.5 rounded-2xl border p-4 shadow-sm sm:gap-2 sm:p-5 ${containerClass}`}>
+      <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${accentClass}`}>
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <div className={"text-xl font-bold leading-tight tracking-tight sm:text-2xl " + (accent ? "text-primary" : "text-foreground")}>
-        {value}
-      </div>
+      <div className={`text-xl font-bold leading-tight tracking-tight sm:text-2xl ${valueClass}`}>{value}</div>
       <div className="text-[11px] leading-snug text-muted-foreground sm:text-xs">{hint}</div>
     </div>
   )

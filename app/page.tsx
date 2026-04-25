@@ -97,7 +97,7 @@ export default async function HomePage() {
             aria-hidden
             style={{
               background:
-                "radial-gradient(60% 60% at 20% 0%, oklch(0.95 0.06 15 / 0.6) 0%, transparent 60%), radial-gradient(50% 50% at 90% 10%, oklch(0.93 0.04 280 / 0.7) 0%, transparent 60%)",
+                "radial-gradient(55% 55% at 18% 0%, oklch(0.94 0.05 32 / 0.7) 0%, transparent 60%), radial-gradient(45% 45% at 88% 8%, oklch(0.93 0.04 180 / 0.55) 0%, transparent 60%)",
             }}
           />
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:py-24">
@@ -115,7 +115,7 @@ export default async function HomePage() {
                 on every tip.
               </p>
               <div className="grid grid-cols-1 gap-2 pt-2 sm:flex sm:flex-wrap sm:gap-3">
-                <Button asChild size="lg" className="w-full rounded-xl shadow-[0_4px_20px_rgba(184,0,53,0.25)] sm:w-auto">
+                <Button asChild size="lg" className="w-full rounded-xl shadow-[var(--shadow-brand)] sm:w-auto">
                   <Link href="#today">
                     See today&apos;s tips <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
