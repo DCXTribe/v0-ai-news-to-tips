@@ -4,121 +4,142 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* AI Daily palette
-     - Background: soft lavender white (#faf8ff)
-     - Foreground: deep navy (#131b2e)
-     - Primary: rose (#b80035) with brighter container variant (#e11d48)
-     - Surfaces: layered light blue-grays (Material 3 inspired)
-     - Border: warm outline variant
+  /* AI Daily palette — warm, friendly, modern B2B
+     - Background: warm cream (#fbf9f5)
+     - Foreground: warm charcoal (#2a241e)
+     - Primary (coral): inviting warm coral for brand + action (#d36447)
+     - Success (sage): soft sage for "with AI" / time saved (#6da89e)
+     - Surfaces: layered warm neutrals at hue 75
+     - Border: neutral warm outline
+     All values in oklch so dark mode mirrors cleanly.
   */
-  --background: oklch(0.98 0.01 290);
-  --foreground: oklch(0.22 0.04 265);
+  --background: oklch(0.985 0.006 80);
+  --foreground: oklch(0.24 0.02 55);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.04 265);
+  --card-foreground: oklch(0.24 0.02 55);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.04 265);
+  --popover-foreground: oklch(0.24 0.02 55);
 
-  --primary: oklch(0.5 0.2 15);
+  /* Primary = coral (warmer/friendlier than old rose) */
+  --primary: oklch(0.63 0.16 32);
   --primary-foreground: oklch(1 0 0);
 
+  /* Success / savings = sage. Used for "With AI", time-saved chips,
+     monthly-savings stat, etc. Gives the value prop its own identity. */
+  --success: oklch(0.6 0.075 180);
+  --success-foreground: oklch(1 0 0);
+  --success-soft: oklch(0.95 0.025 180);
+
   /* Surface containers (low → highest) drive the soft layered look */
-  --surface-low: oklch(0.97 0.015 285);
-  --surface: oklch(0.95 0.02 280);
-  --surface-high: oklch(0.93 0.025 275);
-  --surface-highest: oklch(0.9 0.03 270);
+  --surface-low: oklch(0.97 0.008 75);
+  --surface: oklch(0.95 0.012 75);
+  --surface-high: oklch(0.93 0.016 70);
+  --surface-highest: oklch(0.9 0.02 70);
 
-  /* secondary is a subtle surface for default chips */
-  --secondary: oklch(0.95 0.02 280);
-  --secondary-foreground: oklch(0.22 0.04 265);
+  /* secondary = subtle warm surface for default chips */
+  --secondary: oklch(0.95 0.012 75);
+  --secondary-foreground: oklch(0.24 0.02 55);
 
-  --muted: oklch(0.97 0.015 285);
-  --muted-foreground: oklch(0.45 0.04 25);
+  --muted: oklch(0.97 0.008 75);
+  --muted-foreground: oklch(0.5 0.02 55);
 
-  --accent: oklch(0.95 0.06 15);
-  --accent-foreground: oklch(0.5 0.2 15);
+  /* accent = soft coral surface for hover states + featured chips */
+  --accent: oklch(0.96 0.03 32);
+  --accent-foreground: oklch(0.5 0.16 32);
 
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.88 0.025 20);
-  --input: oklch(0.88 0.025 20);
-  --ring: oklch(0.5 0.2 15);
+  --border: oklch(0.91 0.012 70);
+  --input: oklch(0.91 0.012 70);
+  --ring: oklch(0.63 0.16 32);
 
-  /* Inverse for the dark prompt block */
-  --inverse-surface: oklch(0.28 0.04 265);
-  --inverse-on-surface: oklch(0.96 0.01 280);
+  /* Inverse for the dark prompt block — warm dark, not navy */
+  --inverse-surface: oklch(0.26 0.022 60);
+  --inverse-on-surface: oklch(0.96 0.008 75);
 
-  --chart-1: oklch(0.5 0.2 15);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.63 0.16 32);
+  --chart-2: oklch(0.6 0.075 180);
+  --chart-3: oklch(0.7 0.13 75);
+  --chart-4: oklch(0.55 0.12 250);
+  --chart-5: oklch(0.65 0.14 320);
 
-  --radius: 0.75rem;
+  --radius: 0.875rem;
 
-  --sidebar: oklch(0.97 0.015 285);
-  --sidebar-foreground: oklch(0.22 0.04 265);
-  --sidebar-primary: oklch(0.5 0.2 15);
+  --sidebar: oklch(0.97 0.008 75);
+  --sidebar-foreground: oklch(0.24 0.02 55);
+  --sidebar-primary: oklch(0.63 0.16 32);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.95 0.06 15);
-  --sidebar-accent-foreground: oklch(0.5 0.2 15);
-  --sidebar-border: oklch(0.88 0.025 20);
-  --sidebar-ring: oklch(0.5 0.2 15);
+  --sidebar-accent: oklch(0.96 0.03 32);
+  --sidebar-accent-foreground: oklch(0.5 0.16 32);
+  --sidebar-border: oklch(0.91 0.012 70);
+  --sidebar-ring: oklch(0.63 0.16 32);
+
+  /* Brand-tinted shadow used on cards, hero buttons, etc. */
+  --shadow-brand: 0 8px 30px -8px oklch(0.63 0.16 32 / 0.18);
+  --shadow-brand-soft: 0 6px 24px -10px oklch(0.63 0.16 32 / 0.08);
 }
 
 .dark {
-  --background: oklch(0.18 0.025 265);
-  --foreground: oklch(0.96 0.01 280);
+  --background: oklch(0.18 0.018 60);
+  --foreground: oklch(0.96 0.008 75);
 
-  --card: oklch(0.22 0.03 265);
-  --card-foreground: oklch(0.96 0.01 280);
+  --card: oklch(0.22 0.022 60);
+  --card-foreground: oklch(0.96 0.008 75);
 
-  --popover: oklch(0.22 0.03 265);
-  --popover-foreground: oklch(0.96 0.01 280);
+  --popover: oklch(0.22 0.022 60);
+  --popover-foreground: oklch(0.96 0.008 75);
 
-  --primary: oklch(0.7 0.18 15);
-  --primary-foreground: oklch(0.18 0.025 265);
+  --primary: oklch(0.72 0.15 32);
+  --primary-foreground: oklch(0.18 0.018 60);
 
-  --surface-low: oklch(0.22 0.03 265);
-  --surface: oklch(0.25 0.035 265);
-  --surface-high: oklch(0.28 0.04 265);
-  --surface-highest: oklch(0.32 0.045 265);
+  --success: oklch(0.72 0.09 180);
+  --success-foreground: oklch(0.18 0.018 60);
+  --success-soft: oklch(0.28 0.04 180);
 
-  --secondary: oklch(0.25 0.035 265);
-  --secondary-foreground: oklch(0.96 0.01 280);
+  --surface-low: oklch(0.22 0.022 60);
+  --surface: oklch(0.25 0.025 60);
+  --surface-high: oklch(0.28 0.03 60);
+  --surface-highest: oklch(0.32 0.035 60);
 
-  --muted: oklch(0.22 0.03 265);
-  --muted-foreground: oklch(0.7 0.03 25);
+  --secondary: oklch(0.25 0.025 60);
+  --secondary-foreground: oklch(0.96 0.008 75);
 
-  --accent: oklch(0.32 0.08 15);
-  --accent-foreground: oklch(0.85 0.18 15);
+  --muted: oklch(0.22 0.022 60);
+  --muted-foreground: oklch(0.7 0.02 60);
+
+  --accent: oklch(0.32 0.07 32);
+  --accent-foreground: oklch(0.85 0.15 32);
 
   --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: oklch(0.96 0.01 280);
+  --destructive-foreground: oklch(0.96 0.008 75);
 
-  --border: oklch(0.32 0.04 20);
-  --input: oklch(0.32 0.04 20);
-  --ring: oklch(0.7 0.18 15);
+  --border: oklch(0.32 0.025 60);
+  --input: oklch(0.32 0.025 60);
+  --ring: oklch(0.72 0.15 32);
 
-  --inverse-surface: oklch(0.96 0.01 280);
-  --inverse-on-surface: oklch(0.18 0.025 265);
+  --inverse-surface: oklch(0.96 0.008 75);
+  --inverse-on-surface: oklch(0.18 0.018 60);
 
-  --chart-1: oklch(0.7 0.18 15);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --chart-1: oklch(0.72 0.15 32);
+  --chart-2: oklch(0.72 0.09 180);
+  --chart-3: oklch(0.78 0.13 75);
+  --chart-4: oklch(0.65 0.13 250);
+  --chart-5: oklch(0.7 0.14 320);
 
-  --sidebar: oklch(0.22 0.03 265);
-  --sidebar-foreground: oklch(0.96 0.01 280);
-  --sidebar-primary: oklch(0.7 0.18 15);
-  --sidebar-primary-foreground: oklch(0.18 0.025 265);
-  --sidebar-accent: oklch(0.32 0.08 15);
-  --sidebar-accent-foreground: oklch(0.85 0.18 15);
-  --sidebar-border: oklch(0.32 0.04 20);
-  --sidebar-ring: oklch(0.7 0.18 15);
+  --sidebar: oklch(0.22 0.022 60);
+  --sidebar-foreground: oklch(0.96 0.008 75);
+  --sidebar-primary: oklch(0.72 0.15 32);
+  --sidebar-primary-foreground: oklch(0.18 0.018 60);
+  --sidebar-accent: oklch(0.32 0.07 32);
+  --sidebar-accent-foreground: oklch(0.85 0.15 32);
+  --sidebar-border: oklch(0.32 0.025 60);
+  --sidebar-ring: oklch(0.72 0.15 32);
+
+  --shadow-brand: 0 8px 30px -8px oklch(0 0 0 / 0.4);
+  --shadow-brand-soft: 0 6px 24px -10px oklch(0 0 0 / 0.25);
 }
 
 @theme inline {
@@ -133,6 +154,9 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -162,6 +186,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-brand: var(--shadow-brand);
+  --shadow-brand-soft: var(--shadow-brand-soft);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

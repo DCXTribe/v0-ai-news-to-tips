@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowRight, FileText, MessageCircleQuestion, BookOpen, Sparkles } from "lucide-react"
+import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -97,36 +97,36 @@ export default async function HomePage() {
             aria-hidden
             style={{
               background:
-                "radial-gradient(60% 60% at 20% 0%, oklch(0.95 0.06 15 / 0.6) 0%, transparent 60%), radial-gradient(50% 50% at 90% 10%, oklch(0.93 0.04 280 / 0.7) 0%, transparent 60%)",
+                "radial-gradient(55% 55% at 18% 0%, oklch(0.94 0.05 32 / 0.7) 0%, transparent 60%), radial-gradient(45% 45% at 88% 8%, oklch(0.93 0.04 180 / 0.55) 0%, transparent 60%)",
             }}
           />
-          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6 md:py-24">
+          <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:py-24">
             <div className="flex flex-col gap-6 text-balance">
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 <Sparkles className="h-3 w-3" aria-hidden />
                 {todayLabel} edition
               </span>
-              <h1 className="max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
-                AI news, translated into things you can <span className="text-primary">actually do today</span>.
+              <h1 className="max-w-3xl text-balance text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl md:text-6xl md:leading-[1.05]">
+                AI news, unpacked into things you can <span className="text-primary">actually do today</span>.
               </h1>
-              <p className="max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
+              <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
                 Every morning we read the official OpenAI, Microsoft, Google, Anthropic and Perplexity blogs and turn
                 what&apos;s new into copy-paste prompts and quick workflows for your role &mdash; with the source linked
                 on every tip.
               </p>
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Button asChild size="lg" className="rounded-xl shadow-[0_4px_20px_rgba(184,0,53,0.25)]">
+              <div className="grid grid-cols-1 gap-2 pt-2 sm:flex sm:flex-wrap sm:gap-3">
+                <Button asChild size="lg" className="w-full rounded-xl shadow-[var(--shadow-brand)] sm:w-auto">
                   <Link href="#today">
                     See today&apos;s tips <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-xl">
-                  <Link href="/translate">
-                    <FileText className="h-4 w-4" aria-hidden />
-                    Translate an article
+                <Button asChild size="lg" variant="outline" className="w-full rounded-xl sm:w-auto">
+                  <Link href="/unpack">
+                    <PackageOpen className="h-4 w-4" aria-hidden />
+                    Unpack an article
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="ghost" className="rounded-xl">
+                <Button asChild size="lg" variant="ghost" className="w-full rounded-xl sm:w-auto">
                   <Link href="/ask">
                     <MessageCircleQuestion className="h-4 w-4" aria-hidden />
                     Ask a question
@@ -147,10 +147,10 @@ export default async function HomePage() {
         </section>
 
         {/* Today's feed */}
-        <section id="today" className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+        <section id="today" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 md:py-16">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
                 {isToday ? "Today's tips" : "Latest edition"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -187,7 +187,7 @@ export default async function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
               {feed.flatMap((item) =>
                 (item.ai_daily_tips ?? []).map((tip) => (
                   <TipCard
@@ -208,13 +208,13 @@ export default async function HomePage() {
         <section className="border-t border-border/60 bg-surface-low/50">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-3 md:px-6">
             <div className="rounded-2xl border border-border/60 bg-card p-6">
-              <h3 className="text-lg font-semibold tracking-tight">Translate any article</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Unpack any article</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Paste a URL or article text. We scrape it cleanly and turn it into 3-5 usable tips for your role.
+                Paste a URL or article text. We scrape it cleanly and unpack it into 3-5 usable tips for your role.
               </p>
               <Button asChild variant="link" className="mt-2 h-auto p-0 text-primary">
-                <Link href="/translate">
-                  Translate <ArrowRight className="h-3 w-3" aria-hidden />
+                <Link href="/unpack">
+                  Unpack <ArrowRight className="h-3 w-3" aria-hidden />
                 </Link>
               </Button>
             </div>

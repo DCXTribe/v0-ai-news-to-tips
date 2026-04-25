@@ -14,7 +14,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_4px_12px_rgba(184,0,53,0.25)]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-brand-soft)]">
             <Sparkles className="h-4 w-4" aria-hidden />
           </span>
           <span className="text-lg">AI Daily</span>
@@ -25,7 +25,7 @@ export async function SiteHeader() {
             <Link href="/">Today</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="rounded-full">
-            <Link href="/translate">Translate</Link>
+            <Link href="/unpack">Unpack</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/ask">Ask</Link>
