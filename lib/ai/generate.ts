@@ -1,10 +1,23 @@
 import { generateText, Output } from "ai"
 import { z } from "zod"
-import { ROLES, TOOLS } from "@/lib/constants"
+import { ROLES, TOOLS, SKILL_LEVELS } from "@/lib/constants"
 import type { FirecrawlScrapeResult } from "@/lib/mcp/firecrawl"
 import type { TavilyResult } from "@/lib/mcp/tavily"
 
 const MODEL = "openai/gpt-5-mini"
+
+// Map a stored skill_level to a precise instruction the model can follow.
+function skillInstruction(skill: string | null | undefined): string {
+  const value = skill ?? "beginner"
+  const known = SKILL_LEVELS.find((s) => s.value === value)?.value ?? "beginner"
+  if (known === "beginner") {
+    return "The reader is a BEGINNER with AI tools. Explain every step. Spell out where to click. No jargon. Keep prompts short and surface-level."
+  }
+  if (known === "intermediate") {
+    return "The reader is an INTERMEDIATE user (uses AI a few times a week). Skip the basics. Give richer prompts with structure (sections, bullets, role-play framing)."
+  }
+  return "The reader is an ADVANCED power user. Use sophisticated patterns: chain-of-thought, multi-shot examples, role + constraints, output schemas. Skip basic explanations."
+}
 
 // ---------- Shared schemas ----------
 
@@ -162,13 +175,15 @@ export async function generateTipsFromArticle(args: {
   article: FirecrawlScrapeResult
   role?: string | null
   tools?: string[] | null
+  skillLevel?: string | null
 }) {
-  const { article, role, tools } = args
+  const { article, role, tools, skillLevel } = args
   const roleLine = role ? `The reader's role is: ${ROLES.find((r) => r.value === role)?.label ?? role}.` : ""
   const toolsLine =
     tools && tools.length > 0
       ? `The reader has access to ONLY these tools: ${tools.join(", ")}. Do not generate tips that require other tools.`
-      : "Generate tips that work across major AI tools (Copilot, ChatGPT, Gemini, Claude, Perplexity)."
+      : "Generate tips that work across major AI tools (Copilot, ChatGPT, Gemini, Claude, Perplexity, Kimi, DeepSeek, Qwen)."
+  const skillLine = skillInstruction(skillLevel)
 
   const { output } = await generateText({
     model: MODEL,
@@ -183,6 +198,7 @@ export async function generateTipsFromArticle(args: {
 
 ${roleLine}
 ${toolsLine}
+${skillLine}
 
 The ONLY citation URL you may use is: ${article.url}
 
@@ -212,13 +228,15 @@ export async function generateTipsFromQuestion(args: {
   searchResults: TavilyResult[]
   role?: string | null
   tools?: string[] | null
+  skillLevel?: string | null
 }) {
-  const { question, searchAnswer, searchResults, role, tools } = args
+  const { question, searchAnswer, searchResults, role, tools, skillLevel } = args
   const roleLine = role ? `The reader's role is: ${ROLES.find((r) => r.value === role)?.label ?? role}.` : ""
   const toolsLine =
     tools && tools.length > 0
       ? `The reader has access to ONLY these tools: ${tools.join(", ")}. Do not generate tips that require other tools.`
       : "Generate tips that work across major AI tools."
+  const skillLine = skillInstruction(skillLevel)
 
   const allowedUrls = new Set(searchResults.map((r) => r.url))
   const sourcesBlock = searchResults
@@ -244,6 +262,7 @@ Snippet: ${r.content.slice(0, 600)}`,
 
 ${roleLine}
 ${toolsLine}
+${skillLine}
 
 Use the sources below to ground your tips. ${
       searchAnswer ? `A search engine summarized the topic as: "${searchAnswer}".` : ""
@@ -272,9 +291,11 @@ export async function generateToolRecommendation(args: {
   searchResults: TavilyResult[]
   availableTools?: string[] | null // user's onboarding selection
   role?: string | null
+  skillLevel?: string | null
 }) {
-  const { task, searchAnswer, searchResults, availableTools, role } = args
+  const { task, searchAnswer, searchResults, availableTools, role, skillLevel } = args
   const roleLine = role ? `The reader's role is: ${ROLES.find((r) => r.value === role)?.label ?? role}.` : ""
+  const skillLine = skillInstruction(skillLevel)
   const toolsLine =
     availableTools && availableTools.length > 0
       ? `The reader has access to ONLY these tools, recommend ONLY from this list: ${availableTools.join(", ")}. If none of them fit the task well, still pick the closest match and be honest about its limits in watch_outs.`
@@ -309,6 +330,7 @@ Tool Advisor rules (in addition to the base rules):
 
 ${roleLine}
 ${toolsLine}
+${skillLine}
 
 ${searchAnswer ? `Search engine summary of the topic: "${searchAnswer}".` : ""}
 

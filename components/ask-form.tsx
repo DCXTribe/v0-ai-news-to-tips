@@ -8,13 +8,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { ResultsCta } from "@/components/results-cta"
 import { toast } from "sonner"
-import { Loader2, Sparkles } from "lucide-react"
+import { Loader2, Sparkles, Youtube } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: string[] }) {
   const [question, setQuestion] = useState("")
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [tips, setTips] = useState<Tip[] | null>(null)
+  const [includeYoutube, setIncludeYoutube] = useState(false)
 
   const submit = async (q: string) => {
     if (q.trim().length < 5) {
@@ -28,7 +30,7 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, includeYoutube }),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
@@ -66,8 +68,22 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
                 className="resize-y"
               />
             </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={loading}>
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => setIncludeYoutube((v) => !v)}
+                aria-pressed={includeYoutube}
+                className={cn(
+                  "inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                  includeYoutube
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}
+              >
+                <Youtube className="h-3.5 w-3.5" aria-hidden />
+                Include video walkthroughs
+              </button>
+              <Button type="submit" disabled={loading} className="w-full rounded-xl sm:w-auto">
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

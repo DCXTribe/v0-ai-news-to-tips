@@ -6,7 +6,7 @@ import { NextResponse } from "next/server"
 export const maxDuration = 60
 
 export async function POST(req: Request) {
-  const { question } = (await req.json()) as { question: string }
+  const { question, includeYoutube } = (await req.json()) as { question: string; includeYoutube?: boolean }
   if (!question || question.trim().length < 5) {
     return NextResponse.json({ error: "Ask a question with at least a few words." }, { status: 400 })
   }
@@ -18,25 +18,43 @@ export async function POST(req: Request) {
 
   let role: string | null = null
   let tools: string[] = []
+  let skillLevel: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("ai_daily_profiles")
-      .select("role, tools")
+      .select("role, tools, skill_level")
       .eq("id", user.id)
       .maybeSingle()
     if (profile) {
       role = profile.role
       tools = profile.tools ?? []
+      skillLevel = profile.skill_level ?? null
     }
   }
 
-  // 1. Search the web for grounding
+  // 1. Search the web for grounding. If `includeYoutube` was requested, run a
+  //    second YouTube-only Tavily query and merge the results so the grounding
+  //    pool covers articles AND video walkthroughs.
   let searchAnswer: string | null = null
   let searchResults: Awaited<ReturnType<typeof tavilySearch>>["results"] = []
   try {
     const r = await tavilySearch(question, { maxResults: 6, days: 90 })
     searchAnswer = r.answer
     searchResults = r.results
+    if (includeYoutube) {
+      try {
+        const yt = await tavilySearch(question, {
+          maxResults: 4,
+          days: 365,
+          includeDomains: ["youtube.com"],
+        })
+        // De-dupe by URL
+        const seen = new Set(searchResults.map((s) => s.url))
+        for (const v of yt.results) if (!seen.has(v.url)) searchResults.push(v)
+      } catch (err) {
+        console.log("[v0] tavily youtube search failed (continuing without it):", err)
+      }
+    }
   } catch (err) {
     console.log("[v0] tavily search failed (continuing without grounding):", err)
   }
@@ -50,6 +68,7 @@ export async function POST(req: Request) {
       searchResults,
       role,
       tools,
+      skillLevel,
     })
   } catch (err) {
     console.log("[v0] ask generation error:", err)

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { LogOut, BookMarked, Settings } from "lucide-react"
+import { LogOut, BookMarked, Settings, UserCircle } from "lucide-react"
 
 export function UserMenu({ email }: { email: string }) {
   const initials = (email[0] ?? "?").toUpperCase()
@@ -39,15 +39,21 @@ export function UserMenu({ email }: { email: string }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link href="/profile" className="flex items-center gap-2">
+            <UserCircle className="h-4 w-4" aria-hidden />
+            My profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/library" className="flex items-center gap-2">
             <BookMarked className="h-4 w-4" aria-hidden />
             My library
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/onboarding" className="flex items-center gap-2">
+          <Link href="/onboarding?next=/profile" className="flex items-center gap-2">
             <Settings className="h-4 w-4" aria-hidden />
-            Preferences
+            Edit preferences
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

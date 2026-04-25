@@ -25,15 +25,17 @@ export async function POST(req: Request) {
 
   let role: string | null = null
   let tools: string[] = []
+  let skillLevel: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("ai_daily_profiles")
-      .select("role, tools")
+      .select("role, tools, skill_level")
       .eq("id", user.id)
       .maybeSingle()
     if (profile) {
       role = profile.role
       tools = profile.tools ?? []
+      skillLevel = profile.skill_level ?? null
     }
   }
 
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
   // 2. Generate grounded tips
   let result: Awaited<ReturnType<typeof generateTipsFromArticle>>
   try {
-    result = await generateTipsFromArticle({ article, role, tools })
+    result = await generateTipsFromArticle({ article, role, tools, skillLevel })
   } catch (err) {
     console.log("[v0] translate generation error:", err)
     return NextResponse.json({ error: "Failed to generate tips. Try again." }, { status: 500 })
