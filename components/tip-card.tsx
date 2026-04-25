@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { CopyButton } from "@/components/copy-button"
 import { SaveButton } from "@/components/save-button"
 import { toolLabel } from "@/lib/constants"
-import { Clock, ExternalLink, AlertTriangle, ShieldCheck, Sparkles, Users, NotebookPen, Wand2 } from "lucide-react"
+import { Clock, ExternalLink, AlertTriangle, ShieldCheck, Sparkles, Users, NotebookPen, ArrowDown } from "lucide-react"
 
 export type TipCitation = {
   url: string
@@ -149,42 +149,49 @@ export function TipCard({
           </div>
         )}
 
-        {/* Without AI / With AI comparison — full text, sage success accent */}
+        {/* Before & after — the transformation story.
+            Stacked at all widths because cards live in narrow 3-col grids
+            (~330px each) where side-by-side comparison would be too cramped.
+            Visual hierarchy: Before is muted (dashed border, surface-low),
+            connector arrow links the two, After is the sage success state. */}
         {(tip.before_text || tip.after_text) && (
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
-              Before vs. with AI
-            </span>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+                Before & after
+              </span>
+            </div>
             <div className="flex flex-col gap-2.5">
               {tip.before_text && (
-                <div className="flex gap-3 rounded-xl border border-border/60 bg-card px-4 py-3.5 shadow-sm">
+                <div className="flex gap-3 rounded-xl border border-dashed border-border/70 bg-surface-low/60 px-4 py-3.5">
                   <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface-high text-muted-foreground">
                     <NotebookPen className="h-3.5 w-3.5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Without AI
+                      The old way
                     </div>
-                    <p className="text-sm leading-relaxed text-foreground/80">{tip.before_text}</p>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{tip.before_text}</p>
                   </div>
                 </div>
               )}
+              {tip.before_text && tip.after_text && (
+                <div className="flex items-center gap-2 self-center" aria-hidden>
+                  <span className="block h-px w-6 bg-[color:var(--success)]/30" />
+                  <ArrowDown className="h-3.5 w-3.5 text-[color:var(--success)]" />
+                  <span className="block h-px w-6 bg-[color:var(--success)]/30" />
+                </div>
+              )}
               {tip.after_text && (
-                <div className="relative flex gap-3 overflow-hidden rounded-xl border border-[color:var(--success)]/25 bg-[color:var(--success-soft)] px-4 py-3.5">
-                  <span className="absolute inset-y-0 left-0 w-1 bg-[color:var(--success)]" aria-hidden />
+                <div className="relative flex gap-3 overflow-hidden rounded-xl border border-[color:var(--success)]/30 bg-[color:var(--success-soft)] px-4 py-3.5">
+                  <span className="absolute inset-y-0 left-0 w-1.5 bg-[color:var(--success)]" aria-hidden />
                   <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[color:var(--success)]/15 text-[color:var(--success)]">
-                    <Wand2 className="h-3.5 w-3.5" aria-hidden />
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="mb-0.5 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--success)]">
-                        With AI
-                      </span>
-                      {tip.time_saved && (
-                        <span className="shrink-0 rounded-full bg-[color:var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--success)]">
-                          {tip.time_saved}
-                        </span>
-                      )}
+                    <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--success)]">
+                      With AI
                     </div>
                     <p className="text-sm leading-relaxed text-foreground">{tip.after_text}</p>
                   </div>
