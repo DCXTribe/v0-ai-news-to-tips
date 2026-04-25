@@ -2,6 +2,8 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { AskForm } from "@/components/ask-form"
+import { RecentActivity } from "@/components/recent-activity"
+import { MessageCircleQuestion } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -36,6 +38,13 @@ export default async function AskPage() {
             </p>
           </div>
           <AskForm isAuthed={!!user} samples={SAMPLE_QUESTIONS} />
+
+          <RecentActivity
+            kind="question"
+            surfaceLabel="questions"
+            emptyHint="Your past questions and the tips we generated will live here. Ask one above to get started."
+            EmptyIcon={MessageCircleQuestion}
+          />
         </section>
       </main>
       <SiteFooter />

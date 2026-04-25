@@ -74,3 +74,51 @@ export const getCachedFeed = unstable_cache(
     revalidate: 3600, // 1h fallback; cron purges via revalidateTag immediately on new edition
   },
 )
+
+/**
+ * Returns the prior 3 editions (excluding the latest currently-shown date).
+ * Used by the dedicated /today page to power the "Earlier editions" archive.
+ *
+ * Cached on the same tag so a fresh edition invalidates the archive too
+ * (yesterday becomes day-before-yesterday, which is automatic).
+ */
+export const getCachedArchive = unstable_cache(
+  async (excludeDate: string): Promise<{ date: string; items: FeedItem[] }[]> => {
+    const service = createServiceClient()
+
+    const { data: dates } = await service
+      .from("ai_daily_feed")
+      .select("feed_date")
+      .lt("feed_date", excludeDate)
+      .order("feed_date", { ascending: false })
+      .limit(20)
+
+    if (!dates || dates.length === 0) return []
+
+    // Distinct dates, take top 3
+    const distinct: string[] = []
+    for (const r of dates) {
+      if (!distinct.includes(r.feed_date)) distinct.push(r.feed_date)
+      if (distinct.length === 3) break
+    }
+    if (distinct.length === 0) return []
+
+    const { data: items } = await service
+      .from("ai_daily_feed")
+      .select("*, ai_daily_tips(*)")
+      .in("feed_date", distinct)
+      .order("feed_date", { ascending: false })
+      .order("created_at", { ascending: true })
+
+    const grouped = distinct.map((d) => ({
+      date: d,
+      items: ((items ?? []) as FeedItem[]).filter((i) => i.feed_date === d),
+    }))
+    return grouped
+  },
+  ["daily-feed-archive-v1"],
+  {
+    tags: [FEED_CACHE_TAG],
+    revalidate: 3600,
+  },
+)

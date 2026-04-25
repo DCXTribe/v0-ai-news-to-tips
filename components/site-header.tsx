@@ -22,7 +22,7 @@ export async function SiteHeader() {
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
           <Button asChild variant="ghost" size="sm" className="rounded-full">
-            <Link href="/">Today</Link>
+            <Link href={user ? "/today" : "/"}>Today</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/unpack">Unpack</Link>

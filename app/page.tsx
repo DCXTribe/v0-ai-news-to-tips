@@ -6,6 +6,7 @@ import { TipCard } from "@/components/tip-card"
 import { TodayFeedGrid } from "@/components/today-feed-grid"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowRight, PackageOpen, MessageCircleQuestion, BookOpen, Sparkles, Compass } from "lucide-react"
 import { getCachedFeed } from "@/lib/feed"
 
@@ -14,22 +15,18 @@ import { getCachedFeed } from "@/lib/feed"
 // invalidated by the cron the moment a new edition is written.
 export const maxDuration = 60
 
-async function getSavedTipIds(): Promise<{ user: { id: string } | null; saved: Set<string> }> {
+export default async function HomePage() {
+  // Logged-in users have a dedicated post-login surface at /today with filters,
+  // personalization banner, and archive — redirect them away from this marketing page.
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { user: null, saved: new Set() }
-  const { data } = await supabase.from("ai_daily_saves").select("tip_id").eq("user_id", user.id)
-  return { user, saved: new Set((data ?? []).map((r) => r.tip_id)) }
-}
+  if (user) redirect("/today")
 
-export default async function HomePage() {
-  // Run cached feed read + per-user save lookup in parallel
-  const [{ items: feed, date: feedDate, isToday }, { user, saved: savedSet }] = await Promise.all([
-    getCachedFeed(),
-    getSavedTipIds(),
-  ])
+  // Anonymous users get the marketing landing with sample today's tips.
+  const { items: feed, date: feedDate, isToday } = await getCachedFeed()
+  const savedSet = new Set<string>()
 
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
   const feedDateLabel = new Date(feedDate + "T00:00:00").toLocaleDateString(undefined, {

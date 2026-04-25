@@ -12,8 +12,12 @@ type Item = {
   match: (path: string) => boolean
 }
 
+// "Today" goes to /today (the dedicated post-login surface). Anonymous users
+// hitting /today will see the same feed without personalization. The marketing
+// landing at "/" only redirects logged-in users to /today, so anonymous users
+// who want the hero can still navigate there via the logo.
 const items: Item[] = [
-  { href: "/", label: "Today", Icon: CalendarDays, match: (p) => p === "/" },
+  { href: "/today", label: "Today", Icon: CalendarDays, match: (p) => p === "/" || p.startsWith("/today") },
   { href: "/unpack", label: "Unpack", Icon: PackageOpen, match: (p) => p.startsWith("/unpack") },
   { href: "/advisor", label: "Advisor", Icon: Compass, match: (p) => p.startsWith("/advisor") },
   { href: "/ask", label: "Ask", Icon: MessageSquare, match: (p) => p.startsWith("/ask") },

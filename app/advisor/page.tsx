@@ -2,6 +2,8 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { AdvisorForm } from "@/components/advisor-form"
+import { RecentActivity } from "@/components/recent-activity"
+import { Compass } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { toolLabel } from "@/lib/constants"
 
@@ -53,6 +55,13 @@ export default async function AdvisorPage() {
             )}
           </div>
           <AdvisorForm isAuthed={!!user} samples={SAMPLE_TASKS} hasToolkit={userTools.length > 0} />
+
+          <RecentActivity
+            kind="advisor"
+            surfaceLabel="recommendations"
+            emptyHint="When you ask the Advisor which tool to use, your recommendations are saved here for easy reference."
+            EmptyIcon={Compass}
+          />
         </section>
       </main>
       <SiteFooter />

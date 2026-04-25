@@ -2,6 +2,8 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { UnpackForm } from "@/components/unpack-form"
+import { RecentActivity } from "@/components/recent-activity"
+import { PackageOpen } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -38,6 +40,13 @@ export default async function UnpackPage() {
             </p>
           </div>
           <UnpackForm isAuthed={!!user} hasProfile={!!role} />
+
+          <RecentActivity
+            kind="paste"
+            surfaceLabel="unpacks"
+            emptyHint="When you unpack an article, it'll appear here so you can re-open it any time. Drop a URL above to start."
+            EmptyIcon={PackageOpen}
+          />
         </section>
       </main>
       <SiteFooter />

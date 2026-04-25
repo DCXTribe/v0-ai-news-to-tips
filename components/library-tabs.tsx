@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,9 @@ type HistoryItem = {
 }
 
 export function LibraryTabs({ saves, history }: { saves: SaveItem[]; history: HistoryItem[] }) {
+  // Allow deep-linking to the History tab via `?tab=history` from feature pages.
+  const params = useSearchParams()
+  const initialTab = params?.get("tab") === "history" ? "history" : "saved"
   const [query, setQuery] = useState("")
   const q = query.trim().toLowerCase()
 
@@ -51,7 +55,7 @@ export function LibraryTabs({ saves, history }: { saves: SaveItem[]; history: Hi
   const totalMatching = filteredSaves.length + filteredHistory.length
 
   return (
-    <Tabs defaultValue="saved">
+    <Tabs defaultValue={initialTab}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <TabsList className="w-full justify-start sm:w-auto">
           <TabsTrigger value="saved" className="gap-1.5">
