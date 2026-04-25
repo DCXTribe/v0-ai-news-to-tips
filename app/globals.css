@@ -213,3 +213,16 @@
     letter-spacing: -0.02em;
   }
 }
+
+@layer utilities {
+  /* Hide native scrollbars on horizontal-scroll filter chip rows on mobile.
+     Tapping/dragging is the expected interaction; the visible scrollbar
+     adds visual noise on small screens (seen on Today's category chips). */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

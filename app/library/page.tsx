@@ -82,20 +82,24 @@ export default async function LibraryPage() {
                   tip about once a week.
                 </p>
               </div>
-              <div className="flex w-full gap-2 sm:w-auto">
-                <Button asChild variant="outline" size="sm" className="flex-1 rounded-xl sm:flex-initial">
+              {/* Action row — three primary surfaces. On mobile, buttons are
+                  larger (h-11 = 44px) for comfortable touch targets and use
+                  flex-1 so they share width evenly. At sm+ they collapse back
+                  to compact size to sit alongside the title. */}
+              <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2">
+                <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
                   <Link href="/advisor">
                     <Compass className="h-4 w-4" aria-hidden />
                     <span>Advisor</span>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="flex-1 rounded-xl sm:flex-initial">
+                <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
                   <Link href="/unpack">
                     <PackageOpen className="h-4 w-4" aria-hidden />
                     <span>Unpack</span>
                   </Link>
                 </Button>
-                <Button asChild size="sm" className="flex-1 rounded-xl sm:flex-initial">
+                <Button asChild className="h-11 rounded-xl sm:h-9">
                   <Link href="/ask">
                     <MessageCircleQuestion className="h-4 w-4" aria-hidden />
                     <span>Ask</span>
