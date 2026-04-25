@@ -56,7 +56,7 @@ export async function RecentActivity({ kind, surfaceLabel, emptyHint, EmptyIcon,
         </div>
         {rows.length > 0 && (
           <Link
-            href="/library?tab=history"
+            href={`/library?tab=history&kind=${kind}`}
             className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
           >
             See all in Library
