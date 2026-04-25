@@ -11,27 +11,27 @@ export async function SiteHeader() {
   } = await supabase.auth.getUser()
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
+        <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_4px_12px_rgba(184,0,53,0.25)]">
             <Sparkles className="h-4 w-4" aria-hidden />
           </span>
-          <span>AI Daily</span>
+          <span className="text-lg">AI Daily</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/">Today</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/translate">Translate article</Link>
+          <Button asChild variant="ghost" size="sm" className="rounded-full">
+            <Link href="/translate">Translate</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/ask">Ask</Link>
           </Button>
           {user && (
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" className="rounded-full">
               <Link href="/library">Library</Link>
             </Button>
           )}
@@ -42,10 +42,10 @@ export async function SiteHeader() {
             <UserMenu email={user.email ?? ""} />
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Button asChild variant="ghost" size="sm" className="hidden rounded-full sm:inline-flex">
                 <Link href="/auth/login">Sign in</Link>
               </Button>
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="rounded-full">
                 <Link href="/auth/sign-up">Get started</Link>
               </Button>
             </>

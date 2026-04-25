@@ -6,16 +6,23 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
+type ButtonVariant = "default" | "outline" | "ghost" | "secondary"
+type ButtonSize = "default" | "sm" | "lg"
+
 export function SaveButton({
   tipId,
   initialSaved = false,
   isAuthed,
   variant = "outline",
+  size = "sm",
+  className,
 }: {
   tipId: string
   initialSaved?: boolean
   isAuthed: boolean
-  variant?: "outline" | "ghost"
+  variant?: ButtonVariant
+  size?: ButtonSize
+  className?: string
 }) {
   const [saved, setSaved] = useState(initialSaved)
   const [isPending, startTransition] = useTransition()
@@ -51,7 +58,14 @@ export function SaveButton({
   }
 
   return (
-    <Button onClick={onClick} variant={variant} size="sm" disabled={isPending} aria-pressed={saved}>
+    <Button
+      onClick={onClick}
+      variant={variant}
+      size={size}
+      disabled={isPending}
+      aria-pressed={saved}
+      className={className}
+    >
       {saved ? (
         <BookmarkCheck className="h-4 w-4" aria-hidden />
       ) : (
