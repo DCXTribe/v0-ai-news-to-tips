@@ -1,0 +1,118 @@
+-- ============================================================================
+-- 141 · Supabase Cron setup for /api/cron/daily-feed (PRD v1.4 §15)
+-- ----------------------------------------------------------------------------
+-- This file is a TEMPLATE. It is NOT auto-runnable from the v0 SQL runner.
+-- Run it manually in the Supabase SQL Editor exactly once.
+--
+-- Why a template (not a normal migration):
+--
+--  1. It enables `pg_cron` and `pg_net`, both of which require superuser-level
+--     privileges that only the Supabase Dashboard SQL Editor has by default.
+--  2. It writes the cron secret into Supabase Vault — the secret is read at
+--     job-fire time via `vault.decrypted_secrets`, so we never inline it into
+--     a versioned SQL file. The `<...>` placeholders below MUST be replaced
+--     before pasting.
+--  3. The HTTP target URL is environment-specific (your deployed Vercel URL).
+--
+-- Pre-flight (one minute):
+--
+--    a. Open Supabase Dashboard → Database → Extensions
+--       and enable `pg_cron` and `pg_net` if they aren't already.
+--    b. Have your CRON_SECRET handy (same value as the Vercel env var).
+--    c. Have your deployed app URL handy, e.g. https://ainewsdaily.example.com
+--
+-- After running this script, verify §1 of `docs/cron-health-checklist.md`:
+--
+--    SELECT jobname, schedule, active FROM cron.job;
+--    -- expect one row: ai-daily-feed | 0 20 * * * | t
+--
+--    SELECT * FROM cron.job_run_details
+--    ORDER BY start_time DESC LIMIT 5;
+--    -- empty until 8 PM UTC, then one row per day
+--
+-- To rotate the secret later: re-run the `vault.create_secret` block (it
+-- updates by name) — no need to recreate the cron job.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1. Extensions
+-- ----------------------------------------------------------------------------
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- ----------------------------------------------------------------------------
+-- 2. Vault secret
+--
+-- Replace <PASTE_CRON_SECRET_HERE> with the same value stored in the Vercel
+-- env var CRON_SECRET. This is the bearer token the route handler verifies
+-- in `app/api/cron/daily-feed/route.ts`.
+-- ----------------------------------------------------------------------------
+select vault.create_secret(
+  '<PASTE_CRON_SECRET_HERE>',
+  'cron_secret',
+  'Bearer token for /api/cron/daily-feed (matches Vercel CRON_SECRET env var)'
+);
+
+-- ----------------------------------------------------------------------------
+-- 3. Schedule the job — daily at 20:00 UTC (= 04:00 MYT)
+--
+-- Replace <YOUR_DEPLOYED_URL> with the production Vercel URL, e.g.
+--   https://ainewsdaily.vercel.app
+--
+-- The function uses `vault.decrypted_secrets` to look up the bearer token at
+-- fire time, so the secret never sits in pg_cron's plaintext command column.
+-- ----------------------------------------------------------------------------
+select cron.schedule(
+  'ai-daily-feed',          -- jobname (used by cron.unschedule + observability)
+  '0 20 * * *',             -- 8 PM UTC every day
+  $$
+  select net.http_get(
+    url := '<YOUR_DEPLOYED_URL>/api/cron/daily-feed',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'cron_secret'
+      ),
+      'Content-Type', 'application/json'
+    ),
+    timeout_milliseconds := 90000
+  ) as request_id;
+  $$
+);
+
+-- ----------------------------------------------------------------------------
+-- 4. Verify
+-- ----------------------------------------------------------------------------
+-- Confirm the job exists and is active:
+--   select jobname, schedule, active, command from cron.job where jobname = 'ai-daily-feed';
+--
+-- Tail recent runs (will be empty until first 20:00 UTC fire):
+--   select jobid, start_time, end_time, status, return_message
+--   from cron.job_run_details
+--   where jobid in (select jobid from cron.job where jobname = 'ai-daily-feed')
+--   order by start_time desc
+--   limit 10;
+
+-- ----------------------------------------------------------------------------
+-- 5. Manual trigger (use during demo prep / pre-submission ritual)
+-- ----------------------------------------------------------------------------
+-- This runs the cron *now* without waiting for 20:00 UTC. The cron route is
+-- idempotent for the same UTC date — second call returns `skipped: true`.
+--
+--   select net.http_get(
+--     url := '<YOUR_DEPLOYED_URL>/api/cron/daily-feed',
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (
+--         select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret'
+--       )
+--     ),
+--     timeout_milliseconds := 90000
+--   );
+
+-- ----------------------------------------------------------------------------
+-- 6. Tear-down (only if you need to remove or re-create the schedule)
+-- ----------------------------------------------------------------------------
+--   select cron.unschedule('ai-daily-feed');
+--
+-- Re-running step 3 after an unschedule re-creates the job cleanly.

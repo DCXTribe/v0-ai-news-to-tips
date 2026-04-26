@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache"
+import { createClient } from "@/lib/supabase/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Tip } from "@/components/tip-card"
 
@@ -151,3 +152,64 @@ export const getCachedArchive = unstable_cache(
     revalidate: 3600,
   },
 )
+
+/**
+ * Reads a single past edition by date — for `/today/[date]` and `/history`
+ * (paid-tier surfaces). Goes through the user-scoped client deliberately so
+ * RLS on `ai_daily_feed` (PRD v1.4 §15.5) is the second layer of paywall
+ * defense: free viewers get an empty result here even if they bypass the
+ * server-side tier check. Paid viewers see the full edition.
+ *
+ * Not cached: per-user (RLS-dependent) and accessed sparingly (one date at a
+ * time from a calendar pick). Past editions are immutable so HTTP-layer
+ * caching by the CDN is the right place if traffic ever warrants it.
+ *
+ * Returns `null` when the edition doesn't exist OR when RLS blocked it
+ * (callers can't distinguish, which is fine — both cases render the same
+ * "not available" state).
+ */
+export async function getFeedForDate(date: string): Promise<FeedItem[] | null> {
+  // Validate input shape — defensive against URL-segment tampering.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("ai_daily_feed")
+    .select("*, ai_daily_tips(*)")
+    .eq("feed_date", date)
+    .order("created_at", { ascending: true })
+
+  if (error || !data || data.length === 0) return null
+  return stripSourcelessTips(data as FeedItem[])
+}
+
+/**
+ * Lists distinct edition dates available to the viewer, newest first.
+ * Used by `/history` to render the calendar of past editions.
+ *
+ * Same RLS-as-defense story as `getFeedForDate`: free viewers get only the
+ * latest date back; paid viewers get the full history. The page layer should
+ * still gate on `isViewerPaid()` to render the upgrade modal — this function
+ * just exposes whatever the database is willing to return.
+ */
+export async function listAvailableEditionDates(limit = 90): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("ai_daily_feed")
+    .select("feed_date")
+    .order("feed_date", { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+
+  // Distinct (the table can have multiple rows per date — one per news source).
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const row of data) {
+    const d = row.feed_date as string
+    if (seen.has(d)) continue
+    seen.add(d)
+    out.push(d)
+  }
+  return out
+}
