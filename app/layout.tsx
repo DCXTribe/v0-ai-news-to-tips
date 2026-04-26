@@ -32,7 +32,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport = {
-  themeColor: "#fbf9f5",
+  // Crisp cool-white background — matches --background in globals.css.
+  // This sets the iOS / Android browser chrome color when the page is
+  // installed or shared.
+  themeColor: "#fcfcfd",
 }
 
 export default function RootLayout({
