@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { BookOpen, Sparkles, Briefcase, Wrench, GraduationCap } from "lucide-react"
 import { getCachedFeed, getCachedArchive, type FeedItem } from "@/lib/feed"
+import { getAgentStatus } from "@/lib/agent-status"
+import { AgentActivityStrip } from "@/components/agent-activity-strip"
 import { createClient } from "@/lib/supabase/server"
 import { ROLES, SKILL_LEVELS, toolLabel } from "@/lib/constants"
 
@@ -78,10 +80,14 @@ function feedItemsToFilterableCards(
 }
 
 export default async function TodayPage() {
-  // Run feed read + per-user lookup in parallel
-  const [{ items: feed, date: feedDate, isToday }, { user, savedSet, profile }] = await Promise.all([
+  // Run feed read + per-user lookup + live agent status in parallel.
+  // Agent status is the new contest-edition "live proof" surface; it shows
+  // last-run time + counts of sources / articles / tips for the visible
+  // edition, and pulses amber while the cron is actively running.
+  const [{ items: feed, date: feedDate, isToday }, { user, savedSet, profile }, agentStatus] = await Promise.all([
     getCachedFeed(),
     getViewerContext(),
+    getAgentStatus(),
   ])
 
   // Archive (last 3 days before the currently shown edition)
@@ -213,6 +219,14 @@ export default async function TodayPage() {
               </Button>
             </div>
           )}
+
+          {/* Live Agent Activity strip — sits under the personalization banner
+              (or banner+nudge for unset users), above the filter chips.
+              Polls /api/agent-status every 30s on the client to flip states
+              live during the cron window. */}
+          <div className="mb-6">
+            <AgentActivityStrip initial={agentStatus} />
+          </div>
 
           {feed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 p-10 text-center">
