@@ -35,6 +35,7 @@ export default async function LibraryPage() {
     .select("status, created_at, tip:ai_daily_tips(*)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
+    .limit(200)
 
   const saves = (savesRaw ?? []).flatMap((row) => {
     const t = row.tip as unknown as Tip | null

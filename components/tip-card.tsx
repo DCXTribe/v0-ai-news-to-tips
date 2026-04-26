@@ -236,8 +236,8 @@ export function TipCard({
             </p>
             {citations.length > 0 && (
               <ul className="mt-2.5 flex flex-col gap-1.5 border-t border-border/60 pt-2.5">
-                {citations.slice(0, 3).map((c, i) => (
-                  <li key={i} className="text-xs leading-relaxed text-muted-foreground">
+                {citations.slice(0, 3).map((c) => (
+                  <li key={c.url} className="text-xs leading-relaxed text-muted-foreground">
                     <span className="text-foreground">&ldquo;{c.quote}&rdquo;</span>
                   </li>
                 ))}

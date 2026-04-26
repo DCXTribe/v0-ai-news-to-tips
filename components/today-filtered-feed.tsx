@@ -26,14 +26,21 @@ export function TodayFilteredFeed({
   const [matchToolkit, setMatchToolkit] = useState(false)
 
   // Distinct categories present in today's feed (case-insensitive set)
-  const categories = useMemo(() => {
-    const map = new Map<string, string>()
+  // Counts are computed in the same pass so chip rendering doesn't re-filter
+  // the entire card list per category on every render.
+  const { categories, categoryCounts } = useMemo(() => {
+    const labelByKey = new Map<string, string>()
+    const countByKey = new Map<string, number>()
     for (const c of cards) {
       if (!c.category) continue
       const key = c.category.toLowerCase()
-      if (!map.has(key)) map.set(key, c.category)
+      if (!labelByKey.has(key)) labelByKey.set(key, c.category)
+      countByKey.set(key, (countByKey.get(key) ?? 0) + 1)
     }
-    return Array.from(map.values()).sort((a, b) => a.localeCompare(b))
+    return {
+      categories: Array.from(labelByKey.values()).sort((a, b) => a.localeCompare(b)),
+      categoryCounts: countByKey,
+    }
   }, [cards])
 
   const filtered = useMemo(() => {
@@ -105,7 +112,7 @@ export function TodayFilteredFeed({
               All ({cards.length})
             </button>
             {categories.map((cat) => {
-              const count = cards.filter((c) => (c.category ?? "").toLowerCase() === cat.toLowerCase()).length
+              const count = categoryCounts.get(cat.toLowerCase()) ?? 0
               const active = activeCategory?.toLowerCase() === cat.toLowerCase()
               return (
                 <button
