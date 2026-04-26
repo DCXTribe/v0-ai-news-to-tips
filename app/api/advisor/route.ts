@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { tavilySearch } from "@/lib/mcp/tavily"
 import { generateToolRecommendation } from "@/lib/ai/generate"
+import { consumeAnonUsage, getAnonUsageState } from "@/lib/anon-usage"
 
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
@@ -25,6 +26,21 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Anonymous quota gate — see lib/anon-usage.ts. Logged-in users bypass.
+  if (!user) {
+    const state = await getAnonUsageState()
+    if (!state.remaining.advisor) {
+      return Response.json(
+        {
+          error: "You've used your free recommendation this week. Sign up free to keep going.",
+          code: "anon_quota_reached",
+          anon: { remaining: state.remaining, resetsAt: state.resetsAt },
+        },
+        { status: 429 },
+      )
+    }
+  }
 
   // Pull the user's available tools, role, and skill level from their profile (if any)
   let availableTools: string[] | null = null
@@ -86,5 +102,12 @@ export async function POST(req: Request) {
     }
   }
 
-  return Response.json({ ...output, scoped_to_toolkit: !!availableTools })
+  // Anonymous: consume free use after successful generation.
+  let anon: { remaining: Record<string, boolean>; resetsAt: number } | undefined
+  if (!user) {
+    const newState = await consumeAnonUsage("advisor")
+    anon = { remaining: newState.remaining, resetsAt: newState.resetsAt }
+  }
+
+  return Response.json({ ...output, scoped_to_toolkit: !!availableTools, anon })
 }

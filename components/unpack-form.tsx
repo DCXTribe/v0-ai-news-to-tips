@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { ResultsCta } from "@/components/results-cta"
+import { AnonUsageBadge } from "@/components/anon-usage-badge"
 import { toast } from "sonner"
 import {
   Loader2,
@@ -35,7 +36,18 @@ const URL_RE = /^https?:\/\/\S+$/i
  * - Source preview card on success appears BEFORE the summary so the user can
  *   verify we scraped the right article before reading tips.
  */
-export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasProfile: boolean }) {
+export function UnpackForm({
+  isAuthed,
+  hasProfile,
+  anonRemaining,
+  anonResetsAt,
+}: {
+  isAuthed: boolean
+  hasProfile: boolean
+  /** Null when authed; boolean when anon. Server-rendered initial value. */
+  anonRemaining: boolean | null
+  anonResetsAt: number | null
+}) {
   const [url, setUrl] = useState("")
   const [text, setText] = useState("")
   const [textOpen, setTextOpen] = useState(false)
@@ -43,7 +55,14 @@ export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasPro
   const [summary, setSummary] = useState<string | null>(null)
   const [tips, setTips] = useState<Tip[] | null>(null)
   const [source, setSource] = useState<{ url: string; title: string; publisher: string | null } | null>(null)
+  // Track quota client-side so we can flip to the exhausted state
+  // immediately after a successful generation without a page refresh.
+  const [remaining, setRemaining] = useState<boolean | null>(anonRemaining)
+  const [resetsAt, setResetsAt] = useState<number | null>(anonResetsAt)
   const resultRef = useRef<HTMLDivElement>(null)
+
+  const showAnonBadge = !isAuthed && remaining !== null
+  const isExhausted = !isAuthed && remaining === false
 
   const inputForServer = url.trim() || text.trim()
   const hasInput = inputForServer.length >= 20
@@ -84,16 +103,27 @@ export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasPro
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
+        // 429 = anonymous quota reached. Flip the badge to its exhausted
+        // state and surface the same copy in the toast.
+        if (res.status === 429 && j?.code === "anon_quota_reached" && j?.anon) {
+          setRemaining(false)
+          setResetsAt(j.anon.resetsAt ?? resetsAt)
+        }
         throw new Error(j.error ?? "Failed")
       }
       const data = (await res.json()) as {
         summary: string
         tips: Tip[]
         source: { url: string; title: string; publisher: string | null } | null
+        anon?: { remaining: { unpack: boolean }; resetsAt: number }
       }
       setSummary(data.summary)
       setTips(data.tips)
       setSource(data.source)
+      if (data.anon) {
+        setRemaining(data.anon.remaining.unpack)
+        setResetsAt(data.anon.resetsAt)
+      }
       // Smooth scroll to result
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
     } catch (err) {
@@ -116,6 +146,14 @@ export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasPro
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Exhausted gate replaces the composer entirely so the user can't
+          submit and burn an extra request. The previous result (if any)
+          stays rendered below — they keep the value of their first use. */}
+      {isExhausted && resetsAt !== null && (
+        <AnonUsageBadge kind="unpack" remaining={false} resetsAt={resetsAt} />
+      )}
+
+      {!isExhausted && (
       <Card className="overflow-hidden border-border/70 shadow-sm">
         <CardContent className="p-0">
           <form onSubmit={onSubmit} className="flex flex-col">
@@ -184,17 +222,20 @@ export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasPro
 
             {/* Footer — meta + submit */}
             <div className="flex flex-col gap-3 bg-card p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
-              <div className="text-xs leading-relaxed text-muted-foreground">
-                {!isAuthed && <>Tips are kept until you leave the page. Sign in to save them.</>}
+              <div className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
+                {showAnonBadge && remaining === true && resetsAt !== null && (
+                  <AnonUsageBadge kind="unpack" remaining resetsAt={resetsAt} />
+                )}
+                {!isAuthed && <span>Tips are kept until you leave the page. Sign in to save them.</span>}
                 {isAuthed && !hasProfile && (
-                  <>
+                  <span>
                     <a href="/onboarding" className="font-medium text-foreground underline-offset-4 hover:underline">
                       Set your role
                     </a>{" "}
                     to tailor tips.
-                  </>
+                  </span>
                 )}
-                {isAuthed && hasProfile && <>Tips will be tailored to your role and saved to your library.</>}
+                {isAuthed && hasProfile && <span>Tips will be tailored to your role and saved to your library.</span>}
               </div>
               <Button type="submit" disabled={loading || !hasInput} size="lg" className="rounded-xl">
                 {loading ? (
@@ -213,6 +254,7 @@ export function UnpackForm({ isAuthed, hasProfile }: { isAuthed: boolean; hasPro
           </form>
         </CardContent>
       </Card>
+      )}
 
       {/* Result — source preview first (verify), then summary, then tips */}
       {showResult && (

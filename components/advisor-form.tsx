@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { AdvisorResult, type AdvisorOutput } from "@/components/advisor-result"
 import { ResultsCta } from "@/components/results-cta"
+import { AnonUsageBadge } from "@/components/anon-usage-badge"
 import { toast } from "sonner"
 import { Loader2, Compass, PenLine, Search, BarChart3, Wand2, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -90,16 +91,28 @@ const CATEGORIES: TaskCategory[] = [
 export function AdvisorForm({
   isAuthed,
   hasToolkit,
+  anonRemaining,
+  anonResetsAt,
 }: {
   isAuthed: boolean
   /** Kept for backward compat with the page wiring; not rendered here anymore. */
   samples?: string[]
   hasToolkit: boolean
+  /** Null when authed; boolean when anon. Server-rendered initial value. */
+  anonRemaining: boolean | null
+  anonResetsAt: number | null
 }) {
   const [task, setTask] = useState("")
   const [activeCat, setActiveCat] = useState<string>(CATEGORIES[0].value)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AdvisorOutput | null>(null)
+  // Mirror anon quota client-side so the gate updates instantly after a
+  // successful generation without needing a navigation.
+  const [remaining, setRemaining] = useState<boolean | null>(anonRemaining)
+  const [resetsAt, setResetsAt] = useState<number | null>(anonResetsAt)
+
+  const showAnonBadge = !isAuthed && remaining !== null
+  const isExhausted = !isAuthed && remaining === false
 
   const submit = async (q: string) => {
     if (q.trim().length < 8) {
@@ -116,10 +129,21 @@ export function AdvisorForm({
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
+        // 429 = anonymous quota reached. Sync local state so the gate appears.
+        if (res.status === 429 && j?.code === "anon_quota_reached" && j?.anon) {
+          setRemaining(false)
+          setResetsAt(j.anon.resetsAt ?? resetsAt)
+        }
         throw new Error(j.error ?? "Failed")
       }
-      const data = (await res.json()) as AdvisorOutput
+      const data = (await res.json()) as AdvisorOutput & {
+        anon?: { remaining: { advisor: boolean }; resetsAt: number }
+      }
       setResult(data)
+      if (data.anon) {
+        setRemaining(data.anon.remaining.advisor)
+        setResetsAt(data.anon.resetsAt)
+      }
       setTimeout(() => {
         document.getElementById("advisor-result")?.scrollIntoView({ behavior: "smooth", block: "start" })
       }, 50)
@@ -134,8 +158,18 @@ export function AdvisorForm({
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Exhausted gate replaces the composer entirely; users keep any
+          previously-generated recommendation rendered below. */}
+      {isExhausted && resetsAt !== null && (
+        <AnonUsageBadge kind="advisor" remaining={false} resetsAt={resetsAt} />
+      )}
+
+      {!isExhausted && (
       <Card className="border-border/70 shadow-sm">
         <CardContent className="flex flex-col gap-6 pt-6">
+          {showAnonBadge && remaining === true && resetsAt !== null && (
+            <AnonUsageBadge kind="advisor" remaining resetsAt={resetsAt} className="self-start" />
+          )}
           {/* Task input — single line, the headline action */}
           <form
             onSubmit={(e) => {
@@ -237,6 +271,7 @@ export function AdvisorForm({
           </div>
         </CardContent>
       </Card>
+      )}
 
       {result && (
         <div id="advisor-result" className="flex scroll-mt-20 flex-col gap-5">

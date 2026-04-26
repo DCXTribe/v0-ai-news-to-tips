@@ -5,6 +5,7 @@ import { UnpackForm } from "@/components/unpack-form"
 import { RecentActivity } from "@/components/recent-activity"
 import { PackageOpen, Link2, Sparkles, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { getAnonUsageState } from "@/lib/anon-usage"
 import { roleLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
@@ -29,6 +30,10 @@ export default async function UnpackPage() {
       .maybeSingle()
     role = profile?.role ?? null
   }
+
+  // Anonymous quota state — read once on the server so the badge appears
+  // populated on first paint, no client roundtrip needed.
+  const anonState = !user ? await getAnonUsageState() : null
 
   return (
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
@@ -72,7 +77,12 @@ export default async function UnpackPage() {
             <Step n={3} Icon={Sparkles} label="Get tips" hint="ready to use" last />
           </ol>
 
-          <UnpackForm isAuthed={!!user} hasProfile={!!role} />
+          <UnpackForm
+            isAuthed={!!user}
+            hasProfile={!!role}
+            anonRemaining={anonState ? anonState.remaining.unpack : null}
+            anonResetsAt={anonState?.resetsAt ?? null}
+          />
 
           <RecentActivity
             kind="paste"

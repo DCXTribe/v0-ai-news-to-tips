@@ -5,6 +5,7 @@ import { AskForm } from "@/components/ask-form"
 import { RecentActivity } from "@/components/recent-activity"
 import { MessageCircleQuestion, Globe2, Quote, Youtube, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { getAnonUsageState } from "@/lib/anon-usage"
 import { roleLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
@@ -41,6 +42,9 @@ export default async function AskPage() {
       .maybeSingle()
     role = profile?.role ?? null
   }
+
+  // Anonymous quota state for the form's badge / gate.
+  const anonState = !user ? await getAnonUsageState() : null
 
   return (
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
@@ -83,7 +87,12 @@ export default async function AskPage() {
             <Cue Icon={Youtube} label="Videos" hint="optional walkthroughs" />
           </div>
 
-          <AskForm isAuthed={!!user} samples={SAMPLE_QUESTIONS} />
+          <AskForm
+            isAuthed={!!user}
+            samples={SAMPLE_QUESTIONS}
+            anonRemaining={anonState ? anonState.remaining.ask : null}
+            anonResetsAt={anonState?.resetsAt ?? null}
+          />
 
           <RecentActivity
             kind="question"
