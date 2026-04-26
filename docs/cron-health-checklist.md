@@ -1,16 +1,18 @@
 # Cron Health Checklist — AI Daily (writable, schema-correct)
 
-**Document version:** 1.1 (writable companion)
+**Document version:** 1.2 (Supabase Cron migration)
 **Date:** April 26, 2026
 **Owner:** DCX
-**Source:** `cron-health-checklist.md` v1.0 (read-only ops doc)
-**Why this exists:** the v1.0 ops checklist was written against a planned schema
-(`ai_daily_news_items`, `news_item_id`) that diverged from what actually shipped
-(`ai_daily_feed`, `feed_id`). The SQL in v1.0 will not run as-is. This file is
-the writable, schema-correct twin — same structure, same pass criteria, same
-fix matrix, but every query and column reference matches the live database.
+**Why this exists:** v1.1 was the schema-correct twin of the original ops doc
+(real table names, real columns). v1.2 migrates the *scheduler* itself away
+from Vercel Cron (Hobby tier daily-only limit was about to bite us during
+judging) onto **Supabase Cron** via `pg_cron` + `pg_net` + Vault, per PRD v1.4
+§15. The Vercel `vercel.json` cron entry has been removed; the schedule is now
+defined inside Supabase. Everything else (route handler, env vars, schema,
+dashboards) is unchanged.
 
-If you are reading this for the first time, **use this file**, not the v1.0.
+If you are reading this for the first time, **use this file**, not the older
+versions.
 
 ---
 
@@ -39,8 +41,8 @@ three checks at once.
 
 | # | Check | Where | Pass criteria |
 |---|---|---|---|
-| 1.1 | A cron entry for `/api/cron/daily-feed` exists in `vercel.json` | Repo root | Entry exists with schedule `"0 20 * * *"` (= 8 PM UTC = 4 AM MYT). Now lives in this repo's `vercel.json`. |
-| 1.2 | The cron job is visible in the Vercel dashboard | Vercel → Project → Settings → Cron Jobs | Listed, "Enabled", with a `Next run` timestamp |
+| 1.1 | The Supabase Cron job `ai-daily-feed` is scheduled | Supabase SQL Editor: `select jobname, schedule, active from cron.job where jobname = 'ai-daily-feed';` | One row returned. `schedule = '0 20 * * *'` (= 8 PM UTC = 4 AM MYT). `active = t`. Created by running `scripts/141_supabase_cron_setup.sql.template` once after replacing the two `<...>` placeholders. The Vercel `vercel.json` cron entry has been deleted intentionally. |
+| 1.2 | The `pg_cron` and `pg_net` extensions are enabled | Supabase Dashboard → Database → Extensions | Both show "Enabled". `pg_cron` schedules the job; `pg_net` makes the outbound `http_get` to the Vercel route. |
 | 1.3 | `CRON_SECRET` env var is set on Production | Vercel → Project → Settings → Environment Variables | Exists, scoped to Production, value not empty |
 | 1.4 | `FIRECRAWL_API_KEY` is set on Production | Same place | Exists |
 | 1.5 | `TAVILY_API_KEY` is set on Production | Same place | Exists |
@@ -180,6 +182,7 @@ If all four confirmations pass, record the demo per §11 of the contest PRD.
 |---|---|---|
 | §2 Check A returns 0 rows | Cron has never run, or has not run in 36+ hours | Trigger manually (§5). If still empty, see §6 emergency seed. |
 | Cron triggered but Vercel logs show timeout | A vendor blog is slow or unreachable | Confirm `maxDuration = 60` on the cron route. The cron processes sources in parallel via `Promise.allSettled` and limits to `SOURCE_LIMIT = 5` per run, so one slow vendor shouldn't sink the whole run. If it does, lower `SOURCE_LIMIT` to 4 temporarily. |
+| `cron.job_run_details` shows `status = 'failed'` with no Vercel log entry | Supabase `pg_net` couldn't reach the Vercel route at all | Likely a wrong `<YOUR_DEPLOYED_URL>` baked into the schedule, or the bearer token in Vault diverged from `CRON_SECRET`. Re-run §5.a from the SQL Editor — `net.http_get` returns the HTTP status synchronously, which makes the failure mode obvious. To rotate the secret: re-run the `vault.create_secret(...)` block in `scripts/141_supabase_cron_setup.sql.template` (it updates by name); no need to recreate the schedule. |
 | Cron triggered, logs show error after `[v0] tavily lookup failed` | Tavily MCP outage or invalid key | Confirm `TAVILY_API_KEY` is set. Check Tavily status. The cron logs and skips the affected source — others still process. |
 | Cron triggered, logs show error during `scrapeUrl` | Firecrawl MCP outage or invalid key | Confirm `FIRECRAWL_API_KEY` is set. Check Firecrawl status. If outage, leave the previous edition live — the strip's State C handles this gracefully. |
 | Cron triggered, logs show error during `generateTipFromNewsItem` | Vercel AI Gateway issue or quota | Check AI Gateway dashboard. If quota, swap the default model in `lib/ai/generate.ts` to a cheaper one for this edition. |
@@ -194,6 +197,31 @@ If all four confirmations pass, record the demo per §11 of the contest PRD.
 ---
 
 ## 5. Manual cron trigger procedure
+
+There are two equivalent ways to fire the cron without waiting for 8 PM UTC.
+Both call the exact same route handler — pick whichever surface you have open.
+
+### 5.a — From Supabase (preferred, no laptop needed)
+
+Open the Supabase SQL Editor and run:
+
+```sql
+select net.http_get(
+  url := '<YOUR_DEPLOYED_URL>/api/cron/daily-feed',
+  headers := jsonb_build_object(
+    'Authorization', 'Bearer ' || (
+      select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret'
+    )
+  ),
+  timeout_milliseconds := 90000
+);
+```
+
+This reuses the exact Vault-stored secret the scheduled job uses, so a success
+here proves the schedule will succeed too. Watch the result land in
+`cron.job_run_details` plus the matching row in `ai_daily_feed`.
+
+### 5.b — From your laptop (handy when investigating from logs)
 
 ```bash
 # Replace YOUR_CRON_SECRET with the value from Vercel env vars (Production)
