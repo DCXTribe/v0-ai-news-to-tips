@@ -4,7 +4,7 @@
 
 While you sleep, Newt reads eight official AI vendor blogs, distills the news, and ships copy-paste-ready tips with cited sources by morning. Three more agents stand by during the day to unpack any article you paste, route a task to the right AI in your toolkit, and ground questions in the live web.
 
-[**Live demo →**](https://v0-ai-news-to-tips.vercel.app/)
+[**Live demo →**](https://v0-ai-news-to-tips.vercel.app/) · [**Mirror →**](https://v0-newt.vercel.app/)
 
 ![Built with v0](https://img.shields.io/badge/Built_with-v0-black) ![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black) ![Powered by AI Gateway](https://img.shields.io/badge/Inference-Vercel_AI_Gateway-black) ![MCP](https://img.shields.io/badge/MCP-Firecrawl_+_Tavily-black) ![Database](https://img.shields.io/badge/Database-Supabase-3ECF8E)
 
