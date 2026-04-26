@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { generateTipsFromQuestion } from "@/lib/ai/generate"
 import { tavilySearch } from "@/lib/mcp/tavily"
+import { consumeAnonUsage, getAnonUsageState } from "@/lib/anon-usage"
 import { NextResponse } from "next/server"
 
 export const maxDuration = 60
@@ -15,6 +16,21 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Anonymous quota gate — see lib/anon-usage.ts. Logged-in users bypass.
+  if (!user) {
+    const state = await getAnonUsageState()
+    if (!state.remaining.ask) {
+      return NextResponse.json(
+        {
+          error: "You've used your free question this week. Sign up free to keep going.",
+          code: "anon_quota_reached",
+          anon: { remaining: state.remaining, resetsAt: state.resetsAt },
+        },
+        { status: 429 },
+      )
+    }
+  }
 
   let role: string | null = null
   let tools: string[] = []
@@ -103,8 +119,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ summary: result.summary, tips: inserted ?? [] })
   }
 
+  // Anonymous: consume the free use only after successful generation.
+  const newState = await consumeAnonUsage("ask")
   return NextResponse.json({
     summary: result.summary,
     tips: result.tips.map((t, i) => ({ ...t, id: `tmp-${i}` })),
+    anon: { remaining: newState.remaining, resetsAt: newState.resetsAt },
   })
 }

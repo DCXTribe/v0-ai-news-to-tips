@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { generateTipsFromArticle } from "@/lib/ai/generate"
 import { scrapeUrl, type FirecrawlScrapeResult } from "@/lib/mcp/firecrawl"
+import { consumeAnonUsage, getAnonUsageState } from "@/lib/anon-usage"
 import { NextResponse } from "next/server"
 
 export const maxDuration = 60
@@ -22,6 +23,23 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Anonymous quota: 1 free use per rolling 7-day window. Check BEFORE
+  // doing any expensive work (scrape + LLM) so blocked users get a fast
+  // 429 with a clear sign-up path. Logged-in users skip this entirely.
+  if (!user) {
+    const state = await getAnonUsageState()
+    if (!state.remaining.unpack) {
+      return NextResponse.json(
+        {
+          error: "You've used your free unpack this week. Sign up free to keep going.",
+          code: "anon_quota_reached",
+          anon: { remaining: state.remaining, resetsAt: state.resetsAt },
+        },
+        { status: 429 },
+      )
+    }
+  }
 
   let role: string | null = null
   let tools: string[] = []
@@ -119,10 +137,14 @@ export async function POST(req: Request) {
     })
   }
 
-  // Anonymous: return inline (not persisted)
+  // Anonymous: return inline (not persisted) and consume the free use.
+  // Cookie write happens after a successful generation so failures don't
+  // burn the user's single free use.
+  const newState = await consumeAnonUsage("unpack")
   return NextResponse.json({
     summary: result.summary,
     source: article.url === "user-pasted" ? null : { url: article.url, title: article.title, publisher: article.publisher },
     tips: result.tips.map((t, i) => ({ ...t, id: `tmp-${i}`, ...sourceFields })),
+    anon: { remaining: newState.remaining, resetsAt: newState.resetsAt },
   })
 }

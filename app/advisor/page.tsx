@@ -6,6 +6,7 @@ import { AdvisorForm } from "@/components/advisor-form"
 import { RecentActivity } from "@/components/recent-activity"
 import { Compass, Award, ArrowUpRight, AlertTriangle, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { getAnonUsageState } from "@/lib/anon-usage"
 import { toolLabel, roleLabel } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
@@ -37,6 +38,9 @@ export default async function AdvisorPage() {
     userTools = (profile?.tools as string[] | null) ?? []
     role = (profile?.role as string | null) ?? null
   }
+
+  // Anonymous quota state for the form's badge / gate.
+  const anonState = !user ? await getAnonUsageState() : null
 
   return (
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
@@ -132,7 +136,12 @@ export default async function AdvisorPage() {
             </ul>
           </div>
 
-          <AdvisorForm isAuthed={!!user} hasToolkit={userTools.length > 0} />
+          <AdvisorForm
+            isAuthed={!!user}
+            hasToolkit={userTools.length > 0}
+            anonRemaining={anonState ? anonState.remaining.advisor : null}
+            anonResetsAt={anonState?.resetsAt ?? null}
+          />
 
           <RecentActivity
             kind="advisor"

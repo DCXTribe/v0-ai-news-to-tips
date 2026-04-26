@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { TipCard, type Tip } from "@/components/tip-card"
 import { ResultsCta } from "@/components/results-cta"
+import { AnonUsageBadge } from "@/components/anon-usage-badge"
 import { toast } from "sonner"
 import {
   Loader2,
@@ -51,14 +52,32 @@ const TOPICS: Topic[] = [
   { value: "social", label: "Social", Icon: Hash, stem: "How do I draft a LinkedIn post about " },
 ]
 
-export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: string[] }) {
+export function AskForm({
+  isAuthed,
+  samples,
+  anonRemaining,
+  anonResetsAt,
+}: {
+  isAuthed: boolean
+  samples: string[]
+  /** Null when authed; boolean when anon. Server-rendered initial value. */
+  anonRemaining: boolean | null
+  anonResetsAt: number | null
+}) {
   const [question, setQuestion] = useState("")
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [tips, setTips] = useState<Tip[] | null>(null)
   const [includeYoutube, setIncludeYoutube] = useState(false)
+  // Mirror anon quota client-side so we can flip the gate after a
+  // successful generation without waiting on a navigation.
+  const [remaining, setRemaining] = useState<boolean | null>(anonRemaining)
+  const [resetsAt, setResetsAt] = useState<number | null>(anonResetsAt)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const resultRef = useRef<HTMLDivElement>(null)
+
+  const showAnonBadge = !isAuthed && remaining !== null
+  const isExhausted = !isAuthed && remaining === false
 
   const submit = async (q: string) => {
     if (q.trim().length < 5) {
@@ -76,11 +95,25 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
+        // 429 = anonymous quota reached. Sync local state so the form
+        // collapses to the exhausted callout.
+        if (res.status === 429 && j?.code === "anon_quota_reached" && j?.anon) {
+          setRemaining(false)
+          setResetsAt(j.anon.resetsAt ?? resetsAt)
+        }
         throw new Error(j.error ?? "Failed")
       }
-      const data = (await res.json()) as { summary: string; tips: Tip[] }
+      const data = (await res.json()) as {
+        summary: string
+        tips: Tip[]
+        anon?: { remaining: { ask: boolean }; resetsAt: number }
+      }
       setSummary(data.summary)
       setTips(data.tips)
+      if (data.anon) {
+        setRemaining(data.anon.remaining.ask)
+        setResetsAt(data.anon.resetsAt)
+      }
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong")
@@ -103,8 +136,18 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Exhausted gate replaces the composer entirely; users keep any
+          previously-generated result rendered below. */}
+      {isExhausted && resetsAt !== null && (
+        <AnonUsageBadge kind="ask" remaining={false} resetsAt={resetsAt} />
+      )}
+
+      {!isExhausted && (
       <Card className="overflow-hidden border-border/70 shadow-sm">
         <CardContent className="flex flex-col gap-5 pt-6">
+          {showAnonBadge && remaining === true && resetsAt !== null && (
+            <AnonUsageBadge kind="ask" remaining resetsAt={resetsAt} className="self-start" />
+          )}
           {/* Topic chips — entry point. These suggest a question shape and
               prefill a stem rather than a complete question, so users still
               feel ownership of the question. */}
@@ -214,6 +257,7 @@ export function AskForm({ isAuthed, samples }: { isAuthed: boolean; samples: str
           )}
         </CardContent>
       </Card>
+      )}
 
       {(summary || (tips && tips.length > 0)) && (
         <div ref={resultRef} className="flex scroll-mt-20 flex-col gap-5">
