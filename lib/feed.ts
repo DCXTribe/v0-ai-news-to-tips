@@ -26,6 +26,32 @@ function todayDateString() {
 }
 
 /**
+ * REQ-LINK-04: tips with a null `source_url` must not render on `/` or
+ * `/today`. The brand promise ("with the source linked on every tip") fails
+ * loudly the moment a sourceless tip slips through.
+ *
+ * Filter at the lib boundary — every page that reads via getCachedFeed /
+ * getCachedArchive automatically benefits, and we log the count once per
+ * fetch so ops can spot a failing cron parser before it goes live.
+ */
+function stripSourcelessTips(items: FeedItem[]): FeedItem[] {
+  let dropped = 0
+  const cleaned = items.map((item) => {
+    const tips = (item.ai_daily_tips ?? []).filter((t) => {
+      const has = t.source_url && t.source_url !== "user-pasted"
+      if (!has) dropped += 1
+      return has
+    })
+    return { ...item, ai_daily_tips: tips }
+  })
+  if (dropped > 0) {
+    console.log(`[v0] feed: filtered ${dropped} sourceless tip(s) (REQ-LINK-04). Audit cron output.`)
+  }
+  // Drop feed items that ended up with zero renderable tips
+  return cleaned.filter((i) => (i.ai_daily_tips ?? []).length > 0)
+}
+
+/**
  * Reads the latest daily feed (today's, or fallback to most recent edition).
  * Cached with a 1h revalidate window AND tagged so the cron can purge
  * the cache the moment a new edition is written.
@@ -44,7 +70,7 @@ export const getCachedFeed = unstable_cache(
       .order("created_at", { ascending: true })
 
     if (todays && todays.length > 0) {
-      return { items: todays as FeedItem[], date: today, isToday: true }
+      return { items: stripSourcelessTips(todays as FeedItem[]), date: today, isToday: true }
     }
 
     const { data: latest } = await service
@@ -63,7 +89,7 @@ export const getCachedFeed = unstable_cache(
       .order("created_at", { ascending: true })
 
     return {
-      items: (items ?? []) as FeedItem[],
+      items: stripSourcelessTips((items ?? []) as FeedItem[]),
       date: latest.feed_date,
       isToday: false,
     }
@@ -115,7 +141,7 @@ export const getCachedArchive = unstable_cache(
 
     const grouped = distinct.map((d) => ({
       date: d,
-      items: ((items ?? []) as FeedItem[]).filter((i) => i.feed_date === d),
+      items: stripSourcelessTips(((items ?? []) as FeedItem[]).filter((i) => i.feed_date === d)),
     }))
     return grouped
   },
