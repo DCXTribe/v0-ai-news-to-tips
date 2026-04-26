@@ -42,7 +42,7 @@ function LoginForm() {
     <Card>
       <CardHeader>
         <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to your AI Daily account</CardDescription>
+        <CardDescription>Sign in to your Newt account</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin}>
@@ -99,7 +99,7 @@ export default function Page() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            AI Daily
+            Newt
           </Link>
         </div>
         <Suspense fallback={<div className="text-center text-sm text-muted-foreground">Loading...</div>}>

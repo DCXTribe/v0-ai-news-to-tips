@@ -285,14 +285,14 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Pillars — three reasons AI Daily is different. Pillar 3 is the
+        {/* Pillars — three reasons Newt is different. Pillar 3 is the
             contest-edition rewrite: agent-forward, names Firecrawl + Tavily +
             Vercel AI Gateway, and preserves the post-contest brand stance
             ("driver's seat") so it ages cleanly. */}
         <section className="border-t border-border/60">
           <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 md:py-20">
             <h2 className="max-w-3xl text-balance text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
-              Why AI Daily.
+              Why Newt.
             </h2>
             <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Three things every other AI newsletter doesn&apos;t do.

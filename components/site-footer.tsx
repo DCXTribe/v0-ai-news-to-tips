@@ -35,7 +35,7 @@ export async function SiteFooter() {
     return (
       <footer className="mt-auto border-t border-border/60 bg-surface-low/50 pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4 py-3 text-xs text-muted-foreground sm:px-6 sm:py-4">
-          <p>© {new Date().getFullYear()} AI Daily · Grounded in official AI vendor sources</p>
+          <p>© {new Date().getFullYear()} Newt · Grounded in official AI vendor sources</p>
         </div>
       </footer>
     )
@@ -48,7 +48,7 @@ export async function SiteFooter() {
         <div className="flex flex-col gap-2 md:max-w-xs">
           <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <BrandMark size={28} />
-            <span>AI Daily</span>
+            <span>Newt</span>
           </Link>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Practical AI tips for everyday work. Sourced from official vendor blogs every morning.
@@ -97,7 +97,7 @@ export async function SiteFooter() {
 
       <div className="border-t border-border/40">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-1 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:px-6 sm:py-4">
-          <p>© {new Date().getFullYear()} AI Daily</p>
+          <p>© {new Date().getFullYear()} Newt</p>
           <p className="hidden sm:block">Tips grounded in official AI vendor sources.</p>
         </div>
       </div>

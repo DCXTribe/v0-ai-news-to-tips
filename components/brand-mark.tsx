@@ -1,8 +1,10 @@
 import { cn } from "@/lib/utils"
 
 /**
- * The AI Daily mark — a blue squircle bearing a white 4-point AI sparkle
+ * The Newt mark — a blue squircle bearing a white 4-point AI sparkle
  * with a small magenta "spark" dot in the upper right.
+ * "Newt" is shorthand for "News-to-Tip", which is exactly what the agent
+ * does every morning at 04:00 MYT.
  *
  * Authored as inline SVG so it:
  *  - matches the live brand palette (vibrant blue primary + soft magenta
@@ -47,7 +49,7 @@ export function BrandMark({
       // than a hard square box.
       className={cn("flex-shrink-0 rounded-[25%]", className)}
     >
-      {!decorative && <title id={titleId}>AI Daily</title>}
+      {!decorative && <title id={titleId}>Newt</title>}
       <defs>
         {/* Diagonal brand-blue gradient. Matches the vibrant action blue
             used for buttons and links — slightly lighter top-left so the

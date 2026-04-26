@@ -12,7 +12,7 @@ export default async function Page({
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            AI Daily
+            Newt
           </Link>
         </div>
         <Card>
