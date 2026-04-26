@@ -95,10 +95,13 @@ export const getCachedArchive = unstable_cache(
 
     if (!dates || dates.length === 0) return []
 
-    // Distinct dates, take top 3
+    // Distinct dates, take top 3 (Set lookup keeps this O(n) instead of O(n²))
+    const seen = new Set<string>()
     const distinct: string[] = []
     for (const r of dates) {
-      if (!distinct.includes(r.feed_date)) distinct.push(r.feed_date)
+      if (seen.has(r.feed_date)) continue
+      seen.add(r.feed_date)
+      distinct.push(r.feed_date)
       if (distinct.length === 3) break
     }
     if (distinct.length === 0) return []
