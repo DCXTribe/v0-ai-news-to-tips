@@ -8,9 +8,10 @@ import { LibraryTabs } from "@/components/library-tabs"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp, Compass } from "lucide-react"
+import { Sparkles, PackageOpen, MessageCircleQuestion, Clock, BookmarkCheck, TrendingUp, Compass, CalendarRange } from "lucide-react"
 import { parseTimeSavedToMinutes, formatMinutes } from "@/lib/time"
 import { toolLabel } from "@/lib/constants"
+import { getViewerTier } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
@@ -50,6 +51,11 @@ export default async function LibraryPage() {
     .limit(50)
   const history = (historyRaw ?? []) as HistoryRow[]
 
+  // Tier is read here only to switch the archive cross-link's destination —
+  // /history for paid (calendar view) vs /upgrade for free. Both are valid
+  // entry points; we just point each viewer to the one that won't bounce.
+  const { tier } = await getViewerTier()
+
   // ---- Stats: time saved, tools breakdown ---------------------------------
   const totalMinutes = saves.reduce((sum, s) => sum + parseTimeSavedToMinutes(s.tip.time_saved), 0)
   const tipsWithTimeSaved = saves.filter((s) => parseTimeSavedToMinutes(s.tip.time_saved) > 0).length
@@ -83,27 +89,41 @@ export default async function LibraryPage() {
                   tip about once a week.
                 </p>
               </div>
-              {/* Action row — three primary surfaces. On mobile, buttons are
-                  larger (h-11 = 44px) for comfortable touch targets and use
-                  flex-1 so they share width evenly. At sm+ they collapse back
-                  to compact size to sit alongside the title. */}
-              <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2">
-                <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
-                  <Link href="/advisor">
-                    <Compass className="h-4 w-4" aria-hidden />
-                    <span>Advisor</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
-                  <Link href="/unpack">
-                    <PackageOpen className="h-4 w-4" aria-hidden />
-                    <span>Unpack</span>
-                  </Link>
-                </Button>
-                <Button asChild className="h-11 rounded-xl sm:h-9">
-                  <Link href="/ask">
-                    <MessageCircleQuestion className="h-4 w-4" aria-hidden />
-                    <span>Ask</span>
+              {/* Action row — three primary surfaces + archive cross-link.
+                  On mobile, buttons are larger (h-11 = 44px) for comfortable
+                  touch targets. The archive entry point routes to /history
+                  for paid viewers (calendar) or /upgrade for free (paywall),
+                  so the click never dead-ends. */}
+              <div className="flex w-full flex-col gap-2 sm:w-auto">
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2">
+                  <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
+                    <Link href="/advisor">
+                      <Compass className="h-4 w-4" aria-hidden />
+                      <span>Advisor</span>
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-11 rounded-xl sm:h-9">
+                    <Link href="/unpack">
+                      <PackageOpen className="h-4 w-4" aria-hidden />
+                      <span>Unpack</span>
+                    </Link>
+                  </Button>
+                  <Button asChild className="h-11 rounded-xl sm:h-9">
+                    <Link href="/ask">
+                      <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+                      <span>Ask</span>
+                    </Link>
+                  </Button>
+                </div>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 justify-start rounded-xl text-muted-foreground sm:justify-center"
+                >
+                  <Link href={tier === "paid" ? "/history" : "/upgrade?next=/history"}>
+                    <CalendarRange className="h-4 w-4" aria-hidden />
+                    <span>{tier === "paid" ? "Browse past editions" : "Unlock past editions"}</span>
                   </Link>
                 </Button>
               </div>

@@ -3,12 +3,22 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { UserMenu } from "@/components/user-menu"
 import { BrandMark } from "@/components/brand-mark"
+import { getViewerTier } from "@/lib/tier"
 
 export async function SiteHeader() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Read tier on the server so the menu badge is always accurate. The cost
+  // is one extra Supabase round-trip on layout render; the value is never
+  // showing a stale "Free" badge to a user who just redeemed a promo. The
+  // tier helper short-circuits to "free" for anonymous viewers, so the lookup
+  // only runs when there's a user.
+  const { tier, paidUntil } = user
+    ? await getViewerTier()
+    : { tier: "free" as const, paidUntil: null }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
@@ -43,7 +53,7 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-2">
           {user ? (
-            <UserMenu email={user.email ?? ""} />
+            <UserMenu email={user.email ?? ""} tier={tier} paidUntil={paidUntil} />
           ) : (
             <>
               <Button asChild variant="ghost" size="sm" className="hidden rounded-full sm:inline-flex">
