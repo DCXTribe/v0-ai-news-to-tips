@@ -4,142 +4,152 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* AI Daily palette — warm, friendly, modern B2B
-     - Background: warm cream (#fbf9f5)
-     - Foreground: warm charcoal (#2a241e)
-     - Primary (coral): inviting warm coral for brand + action (#d36447)
-     - Success (sage): soft sage for "with AI" / time saved (#6da89e)
-     - Surfaces: layered warm neutrals at hue 75
-     - Border: neutral warm outline
-     All values in oklch so dark mode mirrors cleanly.
+  /* AI Daily — Pulse palette (Apple-inspired, cool & premium)
+     - Background: crisp cool white (#fcfcfd)
+     - Foreground: slate black (#1a1c20)
+     - Primary: vibrant action blue (#007aff)
+     - Accent: soft magenta "AI spark" (#f4e6f9 → deep magenta text)
+     - Surfaces: layered cool neutrals at hue 260
+     - Border: subtle silver/metallic (#e0e2e6)
+     - Inverse: deep slate terminal block reserved for prompt code
+     All values authored in OKLCH so dark mode mirrors cleanly.
   */
-  --background: oklch(0.985 0.006 80);
-  --foreground: oklch(0.24 0.02 55);
+  --background: oklch(0.99 0.002 260);
+  --foreground: oklch(0.20 0.010 260);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.02 55);
+  --card-foreground: oklch(0.20 0.010 260);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.02 55);
+  --popover-foreground: oklch(0.20 0.010 260);
 
-  /* Primary = coral (warmer/friendlier than old rose) */
-  --primary: oklch(0.63 0.16 32);
+  /* Primary = vibrant blue. Drives buttons, links, focus rings, selected chips. */
+  --primary: oklch(0.60 0.160 255);
   --primary-foreground: oklch(1 0 0);
 
-  /* Success / savings = sage. Used for "With AI", time-saved chips,
-     monthly-savings stat, etc. Gives the value prop its own identity. */
-  --success: oklch(0.6 0.075 180);
+  /* Success = iOS crisp green. Used for time-saved chips, "saves N min" stat. */
+  --success: oklch(0.65 0.150 150);
   --success-foreground: oklch(1 0 0);
-  --success-soft: oklch(0.95 0.025 180);
+  --success-soft: oklch(0.96 0.040 150);
 
-  /* Surface containers (low → highest) drive the soft layered look */
-  --surface-low: oklch(0.97 0.008 75);
-  --surface: oklch(0.95 0.012 75);
-  --surface-high: oklch(0.93 0.016 70);
-  --surface-highest: oklch(0.9 0.02 70);
+  /* Layered cool-neutral surfaces (low → highest) */
+  --surface-low: oklch(0.97 0.003 260);
+  --surface: oklch(0.95 0.005 260);
+  --surface-high: oklch(0.93 0.007 260);
+  --surface-highest: oklch(0.90 0.010 260);
 
-  /* secondary = subtle warm surface for default chips */
-  --secondary: oklch(0.95 0.012 75);
-  --secondary-foreground: oklch(0.24 0.02 55);
+  /* secondary = subtle cool surface for default chips */
+  --secondary: oklch(0.96 0.005 260);
+  --secondary-foreground: oklch(0.30 0.010 260);
 
-  --muted: oklch(0.97 0.008 75);
-  --muted-foreground: oklch(0.5 0.02 55);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.55 0.010 260);
 
-  /* accent = soft coral surface for hover states + featured chips */
-  --accent: oklch(0.96 0.03 32);
-  --accent-foreground: oklch(0.5 0.16 32);
+  /* accent = soft magenta surface — the "AI spark". Reserved for the
+     "With AI" pane in before/after blocks, AI-generated indicators, etc. */
+  --accent: oklch(0.95 0.060 320);
+  --accent-foreground: oklch(0.45 0.150 320);
 
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.60 0.200 25);
   --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.91 0.012 70);
-  --input: oklch(0.91 0.012 70);
-  --ring: oklch(0.63 0.16 32);
+  --border: oklch(0.92 0.005 260);
+  --input: oklch(0.92 0.005 260);
+  --ring: oklch(0.60 0.160 255);
 
-  /* Inverse for the dark prompt block — warm dark, not navy */
-  --inverse-surface: oklch(0.26 0.022 60);
-  --inverse-on-surface: oklch(0.96 0.008 75);
+  /* Inverse for the dark prompt block — deep slate, not warm */
+  --inverse-surface: oklch(0.20 0.010 260);
+  --inverse-on-surface: oklch(0.98 0.002 260);
 
-  --chart-1: oklch(0.63 0.16 32);
-  --chart-2: oklch(0.6 0.075 180);
-  --chart-3: oklch(0.7 0.13 75);
-  --chart-4: oklch(0.55 0.12 250);
-  --chart-5: oklch(0.65 0.14 320);
+  --chart-1: oklch(0.60 0.160 255);
+  --chart-2: oklch(0.65 0.150 150);
+  --chart-3: oklch(0.55 0.180 320);
+  --chart-4: oklch(0.65 0.140 200);
+  --chart-5: oklch(0.70 0.130 60);
 
-  --radius: 0.875rem;
+  /* iOS-style 16px squircle corners. */
+  --radius: 1rem;
 
-  --sidebar: oklch(0.97 0.008 75);
-  --sidebar-foreground: oklch(0.24 0.02 55);
-  --sidebar-primary: oklch(0.63 0.16 32);
+  --sidebar: oklch(0.97 0.003 260);
+  --sidebar-foreground: oklch(0.20 0.010 260);
+  --sidebar-primary: oklch(0.60 0.160 255);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.03 32);
-  --sidebar-accent-foreground: oklch(0.5 0.16 32);
-  --sidebar-border: oklch(0.91 0.012 70);
-  --sidebar-ring: oklch(0.63 0.16 32);
+  --sidebar-accent: oklch(0.95 0.060 320);
+  --sidebar-accent-foreground: oklch(0.45 0.150 320);
+  --sidebar-border: oklch(0.92 0.005 260);
+  --sidebar-ring: oklch(0.60 0.160 255);
 
-  /* Brand-tinted shadow used on cards, hero buttons, etc. */
-  --shadow-brand: 0 8px 30px -8px oklch(0.63 0.16 32 / 0.18);
-  --shadow-brand-soft: 0 6px 24px -10px oklch(0.63 0.16 32 / 0.08);
+  /* Brand-tinted shadows — resting glow is soft blue, hover shifts to
+     magenta spark, mirroring the logo's blue→purple swirl. */
+  --shadow-brand-soft: 0 8px 32px -12px oklch(0.60 0.160 255 / 0.15);
+  --shadow-brand: 0 12px 40px -10px oklch(0.55 0.180 320 / 0.25);
 }
 
 .dark {
-  --background: oklch(0.18 0.018 60);
-  --foreground: oklch(0.96 0.008 75);
+  /* True "lights out" — deep slate / near-black. No navy, no warmth. */
+  --background: oklch(0.12 0.005 260);
+  --foreground: oklch(0.98 0.002 260);
 
-  --card: oklch(0.22 0.022 60);
-  --card-foreground: oklch(0.96 0.008 75);
+  --card: oklch(0.18 0.008 260);
+  --card-foreground: oklch(0.98 0.002 260);
 
-  --popover: oklch(0.22 0.022 60);
-  --popover-foreground: oklch(0.96 0.008 75);
+  --popover: oklch(0.18 0.008 260);
+  --popover-foreground: oklch(0.98 0.002 260);
 
-  --primary: oklch(0.72 0.15 32);
-  --primary-foreground: oklch(0.18 0.018 60);
+  /* Brightened blue + magenta for legibility against dark slate. */
+  --primary: oklch(0.70 0.150 255);
+  --primary-foreground: oklch(1 0 0);
 
-  --success: oklch(0.72 0.09 180);
-  --success-foreground: oklch(0.18 0.018 60);
-  --success-soft: oklch(0.28 0.04 180);
+  --success: oklch(0.70 0.150 150);
+  --success-foreground: oklch(0.12 0.005 260);
+  --success-soft: oklch(0.25 0.050 150);
 
-  --surface-low: oklch(0.22 0.022 60);
-  --surface: oklch(0.25 0.025 60);
-  --surface-high: oklch(0.28 0.03 60);
-  --surface-highest: oklch(0.32 0.035 60);
+  --surface-low: oklch(0.15 0.008 260);
+  --surface: oklch(0.20 0.010 260);
+  --surface-high: oklch(0.28 0.012 260);
+  --surface-highest: oklch(0.35 0.015 260);
 
-  --secondary: oklch(0.25 0.025 60);
-  --secondary-foreground: oklch(0.96 0.008 75);
+  --secondary: oklch(0.25 0.010 260);
+  --secondary-foreground: oklch(0.98 0.002 260);
 
-  --muted: oklch(0.22 0.022 60);
-  --muted-foreground: oklch(0.7 0.02 60);
+  --muted: oklch(0.25 0.010 260);
+  --muted-foreground: oklch(0.65 0.010 260);
 
-  --accent: oklch(0.32 0.07 32);
-  --accent-foreground: oklch(0.85 0.15 32);
+  /* Deep magenta backdrop, neon-magenta foreground for "With AI" pills. */
+  --accent: oklch(0.30 0.080 320);
+  --accent-foreground: oklch(0.85 0.120 320);
 
-  --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: oklch(0.96 0.008 75);
+  --destructive: oklch(0.65 0.200 25);
+  --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.32 0.025 60);
-  --input: oklch(0.32 0.025 60);
-  --ring: oklch(0.72 0.15 32);
+  --border: oklch(0.25 0.010 260);
+  --input: oklch(0.25 0.010 260);
+  --ring: oklch(0.70 0.150 255);
 
-  --inverse-surface: oklch(0.96 0.008 75);
-  --inverse-on-surface: oklch(0.18 0.018 60);
+  /* Inverse flips: in dark mode the prompt block becomes a *light* panel
+     against the slate page, preserving the "take this with me" inversion. */
+  --inverse-surface: oklch(0.96 0.005 260);
+  --inverse-on-surface: oklch(0.12 0.005 260);
 
-  --chart-1: oklch(0.72 0.15 32);
-  --chart-2: oklch(0.72 0.09 180);
-  --chart-3: oklch(0.78 0.13 75);
-  --chart-4: oklch(0.65 0.13 250);
-  --chart-5: oklch(0.7 0.14 320);
+  --chart-1: oklch(0.70 0.150 255);
+  --chart-2: oklch(0.70 0.150 150);
+  --chart-3: oklch(0.70 0.180 320);
+  --chart-4: oklch(0.70 0.140 200);
+  --chart-5: oklch(0.75 0.130 60);
 
-  --sidebar: oklch(0.22 0.022 60);
-  --sidebar-foreground: oklch(0.96 0.008 75);
-  --sidebar-primary: oklch(0.72 0.15 32);
-  --sidebar-primary-foreground: oklch(0.18 0.018 60);
-  --sidebar-accent: oklch(0.32 0.07 32);
-  --sidebar-accent-foreground: oklch(0.85 0.15 32);
-  --sidebar-border: oklch(0.32 0.025 60);
-  --sidebar-ring: oklch(0.72 0.15 32);
+  --sidebar: oklch(0.18 0.008 260);
+  --sidebar-foreground: oklch(0.98 0.002 260);
+  --sidebar-primary: oklch(0.70 0.150 255);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.30 0.080 320);
+  --sidebar-accent-foreground: oklch(0.85 0.120 320);
+  --sidebar-border: oklch(0.25 0.010 260);
+  --sidebar-ring: oklch(0.70 0.150 255);
 
-  --shadow-brand: 0 8px 30px -8px oklch(0 0 0 / 0.4);
-  --shadow-brand-soft: 0 6px 24px -10px oklch(0 0 0 / 0.25);
+  /* In dark mode shadows are mostly black for depth; the brand glow is
+     a subtle neon blue halo on hover. */
+  --shadow-brand-soft: 0 8px 32px -12px oklch(0 0 0 / 0.5);
+  --shadow-brand: 0 12px 40px -10px oklch(0.70 0.150 255 / 0.20);
 }
 
 @theme inline {
@@ -208,8 +218,11 @@
     @apply bg-background text-foreground;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
-  /* Tighter, more editorial display heads */
-  h1, h2, h3 {
+  /* Tighter, editorial display heads — Apple-product feel. */
+  h1, h2 {
+    letter-spacing: -0.03em;
+  }
+  h3 {
     letter-spacing: -0.02em;
   }
 }
@@ -217,7 +230,7 @@
 @layer utilities {
   /* Hide native scrollbars on horizontal-scroll filter chip rows on mobile.
      Tapping/dragging is the expected interaction; the visible scrollbar
-     adds visual noise on small screens (seen on Today's category chips). */
+     adds visual noise on small screens. */
   .scrollbar-hide {
     scrollbar-width: none;
     -ms-overflow-style: none;

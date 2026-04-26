@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { BrandMark } from "@/components/brand-mark"
 
 /**
  * Auth-aware site footer.
@@ -47,9 +47,7 @@ export async function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col gap-2 md:max-w-xs">
           <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            </span>
+            <BrandMark size={28} />
             <span>AI Daily</span>
           </Link>
           <p className="text-sm leading-relaxed text-muted-foreground">
