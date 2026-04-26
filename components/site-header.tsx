@@ -28,7 +28,7 @@ export async function SiteHeader() {
               brand. Drop shadow uses the brand-soft glow so the mark feels
               lifted off the frosted-glass header. */}
           <BrandMark size={32} className="shadow-[var(--shadow-brand-soft)]" />
-          <span className="text-lg">AI Daily</span>
+          <span className="text-lg">Newt</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">

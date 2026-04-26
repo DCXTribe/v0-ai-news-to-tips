@@ -17,9 +17,9 @@ const jetbrains = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "AI Daily — Turn AI news into tips you can use today",
+  title: "Newt — Turn AI news into tips you can use today",
   description:
-    "AI Daily translates the latest AI news into copy-paste prompts and step-by-step workflows for Copilot, ChatGPT, Gemini, Claude and Perplexity — tailored to your role.",
+    "Newt translates the latest AI news into copy-paste prompts and step-by-step workflows for Copilot, ChatGPT, Gemini, Claude and Perplexity — tailored to your role.",
   generator: "v0.app",
   icons: {
     icon: [
