@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { CopyButton } from "@/components/copy-button"
 import { SaveButton } from "@/components/save-button"
 import { toolLabel } from "@/lib/constants"
-import { Clock, ExternalLink, AlertTriangle, ShieldCheck, Sparkles, Users, NotebookPen, ArrowDown } from "lucide-react"
+import { Clock, ExternalLink, AlertTriangle, ShieldCheck, Sparkles, Users, NotebookPen, ArrowDown, Lock } from "lucide-react"
 
 export type TipCitation = {
   url: string
@@ -27,6 +27,9 @@ export type Tip = {
   citations?: TipCitation[] | null
   confidence?: "low" | "medium" | "high" | null
   is_stale?: boolean | null
+  /** True when the audit script flagged the source as 401/paywalled. Surfaces a
+   *  "Subscription required" badge per PRD §3.6 (REQ-LINK-05). */
+  is_paywalled?: boolean | null
 }
 
 function formatPublishedAt(iso: string | null | undefined) {
@@ -214,33 +217,67 @@ export function TipCard({
           </div>
         </div>
 
-        {/* Source */}
+        {/* Source — REQ-LINK-02: the *publisher domain* is the link text, not
+            the headline. Trust is conferred at a glance ("oh, it's openai.com").
+            Title and date demote to supporting metadata.
+            REQ-LINK-06: Tavily citations are also clickable, each with its own
+            domain badge — no more silent quote-only rendering. */}
         {showSource && (
           <div className="rounded-xl border border-border/60 bg-surface-low/60 p-4">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Source</div>
-            <a
-              href={tip.source_url ?? "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-start gap-1.5 text-sm font-medium leading-snug text-foreground hover:underline"
-            >
-              <span className="line-clamp-2">{tip.source_title ?? tip.source_url}</span>
-              <ExternalLink
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary"
-                aria-hidden
-              />
-            </a>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {tip.source_publisher ?? sourceHost}
-              {publishedAt ? ` · ${publishedAt}` : ""}
-            </p>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Source</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={tip.source_url ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                <span className="font-mono text-[13px]">{sourceHost ?? tip.source_url}</span>
+                <ExternalLink
+                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary"
+                  aria-hidden
+                />
+              </a>
+              {tip.is_paywalled && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 rounded-full border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-700 dark:text-amber-400"
+                >
+                  <Lock className="h-3 w-3" aria-hidden />
+                  Subscription required
+                </Badge>
+              )}
+            </div>
+            {(tip.source_title || tip.source_publisher || publishedAt) && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {tip.source_title && <span className="text-foreground/80">{tip.source_title}</span>}
+                {tip.source_title && (tip.source_publisher || publishedAt) && <span aria-hidden> · </span>}
+                {tip.source_publisher ?? null}
+                {tip.source_publisher && publishedAt && <span aria-hidden> · </span>}
+                {publishedAt}
+              </p>
+            )}
             {citations.length > 0 && (
-              <ul className="mt-2.5 flex flex-col gap-1.5 border-t border-border/60 pt-2.5">
-                {citations.slice(0, 3).map((c) => (
-                  <li key={c.url} className="text-xs leading-relaxed text-muted-foreground">
-                    <span className="text-foreground">&ldquo;{c.quote}&rdquo;</span>
-                  </li>
-                ))}
+              <ul className="mt-3 flex flex-col gap-2 border-t border-border/60 pt-3">
+                {citations.slice(0, 3).map((c) => {
+                  const cHost = hostFrom(c.url)
+                  return (
+                    <li key={c.url} className="text-xs leading-relaxed">
+                      <p className="text-foreground">&ldquo;{c.quote}&rdquo;</p>
+                      {c.url && (
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+                        >
+                          {cHost ?? c.url}
+                          <ExternalLink className="h-3 w-3" aria-hidden />
+                        </a>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
