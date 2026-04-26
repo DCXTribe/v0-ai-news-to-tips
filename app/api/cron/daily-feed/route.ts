@@ -5,6 +5,7 @@ import { tavilySearch } from "@/lib/mcp/tavily"
 import { scrapeUrl } from "@/lib/mcp/firecrawl"
 import { generateTipFromNewsItem } from "@/lib/ai/generate"
 import { FEED_CACHE_TAG } from "@/lib/feed"
+import { AGENT_STATUS_CACHE_TAG } from "@/lib/agent-status"
 
 // 60s is the max allowed on the Vercel Hobby plan. We process sources IN PARALLEL
 // so 5 sources finish in roughly the time of a single one (~15-20s).
@@ -184,11 +185,16 @@ export async function GET(req: Request) {
     }
   }
 
-  // If we wrote at least one new tip, purge the homepage feed cache immediately
-  // so visitors see the new edition without waiting for the 1h fallback.
+  // If we wrote at least one new tip, purge BOTH cache tags immediately so the
+  // hero eyebrow's "Last agent run: HH:MM MYT" timestamp and the Live Agent
+  // Activity strip's counts move in lockstep — the cron-health-checklist §4
+  // calls out a desync here as a failure mode ("Eyebrow timestamp ≠ Live
+  // Agent Activity strip timestamp"). Both surfaces read live data; only the
+  // caches need to be told the data has moved.
   if (inserted.length > 0) {
     try {
       revalidateTag(FEED_CACHE_TAG)
+      revalidateTag(AGENT_STATUS_CACHE_TAG)
     } catch (err) {
       console.log("[v0] revalidateTag failed:", err)
     }
