@@ -88,15 +88,26 @@ export default async function HomePage() {
   ])
   const savedSet = new Set<string>()
 
-  const todayLabel = new Date().toLocaleDateString(undefined, {
+  // Both labels must render in MYT to match the brand voice ("publishes by
+  // 6 AM MYT") and to match every other timestamp on the page. Without an
+  // explicit timeZone, Node on Vercel runs in UTC — so e.g. Monday 07:50 MYT
+  // would render as "Sunday, April 26" because UTC is still Sunday at that
+  // moment. Pinning to Asia/Kuala_Lumpur eliminates the ambiguity.
+  const todayLabel = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "Asia/Kuala_Lumpur",
   })
-  const feedDateLabel = new Date(feedDate + "T00:00:00").toLocaleDateString(undefined, {
+  // Anchor the parsed instant to noon UTC. The DB column `feed_date` is a
+  // bare YYYY-MM-DD string representing the MYT publication date. Parsing it
+  // as `T12:00:00Z` (= 20:00 MYT) keeps the date on the same MYT calendar
+  // day for any reasonable formatter timezone, including MYT itself.
+  const feedDateLabel = new Date(feedDate + "T12:00:00Z").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "Asia/Kuala_Lumpur",
   })
   const lastRunMyt = formatLastRunMyt(agentStatus.lastRunAt)
 
