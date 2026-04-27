@@ -22,6 +22,7 @@ import {
   Cpu,
   Search,
   Briefcase,
+  Clock,
 } from "lucide-react"
 import { getCachedFeed } from "@/lib/feed"
 import { getAgentStatus } from "@/lib/agent-status"
@@ -88,21 +89,13 @@ export default async function HomePage() {
   ])
   const savedSet = new Set<string>()
 
-  // Both labels must render in MYT to match the brand voice ("publishes by
-  // 6 AM MYT") and to match every other timestamp on the page. Without an
-  // explicit timeZone, Node on Vercel runs in UTC — so e.g. Monday 07:50 MYT
-  // would render as "Sunday, April 26" because UTC is still Sunday at that
-  // moment. Pinning to Asia/Kuala_Lumpur eliminates the ambiguity.
-  const todayLabel = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: "Asia/Kuala_Lumpur",
-  })
   // Anchor the parsed instant to noon UTC. The DB column `feed_date` is a
   // bare YYYY-MM-DD string representing the MYT publication date. Parsing it
   // as `T12:00:00Z` (= 20:00 MYT) keeps the date on the same MYT calendar
   // day for any reasonable formatter timezone, including MYT itself.
+  // We never use `new Date()` for the eyebrow — the displayed date comes
+  // exclusively from the latest edition row so a stale agent run never
+  // produces a misleading "Today's edition" header.
   const feedDateLabel = new Date(feedDate + "T12:00:00Z").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -130,11 +123,19 @@ export default async function HomePage() {
           />
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:py-24">
             <div className="flex flex-col gap-6 text-balance">
+              {/* Eyebrow shows the actual edition's date+time, never the
+                  server's "today". This is the single source of truth: if the
+                  agent hasn't run today yet, we say so honestly via the
+                  "Latest edition" wording + the stale banner below. */}
               <span className="inline-flex w-fit flex-wrap items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 <Sparkles className="h-3 w-3" aria-hidden />
-                Today&apos;s edition · {todayLabel}
-                <span className="text-primary/40">·</span>
-                Last agent run: {lastRunMyt}
+                {isToday ? "Today's edition" : "Latest edition"} · {feedDateLabel}
+                {lastRunMyt && (
+                  <>
+                    <span className="text-primary/40">·</span>
+                    Updated {lastRunMyt}
+                  </>
+                )}
               </span>
               <h1 className="max-w-3xl text-balance text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl md:text-6xl md:leading-[1.05]">
                 Your <span className="text-primary">overnight</span> AI research agent.
@@ -191,12 +192,39 @@ export default async function HomePage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {feed.length > 0
                   ? `${feed.length} tip${feed.length === 1 ? "" : "s"} · ${feedDateLabel}${
-                      isToday ? "" : " (today's edition publishes overnight)"
+                      lastRunMyt ? ` · Updated ${lastRunMyt}` : ""
                     }`
                   : "Awaiting first edition."}
               </p>
             </div>
           </div>
+
+          {/* Stale-edition banner — only renders when the latest edition's
+              date is earlier than today (MYT) AND there are tips to show.
+              Communicates "no new content this run" without hiding the
+              previous edition; the data is still useful, the labelling is
+              what changes. The amber tone matches the existing "May be
+              outdated" tip badge so users learn one visual language. */}
+          {!isToday && feed.length > 0 && (
+            <div
+              className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5 sm:mb-8 sm:px-5"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  No new edition yet today
+                </span>
+                <span className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  Showing the most recent edition from {feedDateLabel}
+                  {lastRunMyt && <>, last updated {lastRunMyt}</>}. The next
+                  agent run is scheduled for 20:00 MYT — this page will
+                  refresh automatically.
+                </span>
+              </div>
+            </div>
+          )}
 
           {feed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 p-10 text-center">
