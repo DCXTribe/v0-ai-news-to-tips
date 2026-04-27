@@ -1,7 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ChevronDown, Search, Globe, Layers, Sparkles, Database, ShieldCheck, CalendarClock } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  ChevronDown,
+  Search,
+  Globe,
+  Layers,
+  Sparkles,
+  Database,
+  ShieldCheck,
+  CalendarClock,
+  RefreshCw,
+} from "lucide-react"
 import type { AgentStatus } from "@/lib/agent-status"
 
 /**
@@ -160,12 +171,33 @@ const PIPELINE: PipelineStep[] = [
 ]
 
 export function AgentActivityStrip({ initial }: { initial: AgentStatus }) {
+  const router = useRouter()
   const [status, setStatus] = useState<AgentStatus>(initial)
   const [open, setOpen] = useState(false)
+  // Transient "Edition refreshed" pill. Flips on for ~6s after an auto-refresh
+  // is dispatched, then fades out. Gives the user a visible cue that the tips
+  // they're looking at just changed under them — without that, a silent swap
+  // can feel like a glitch.
+  const [justRefreshed, setJustRefreshed] = useState(false)
   // We keep "now" in state so the "verified" timestamp updates with the
   // 30s poll instead of being frozen at first render. Hydration-safe: the
   // initial value is null and we only fill it client-side after mount.
   const [nowIso, setNowIso] = useState<string | null>(null)
+
+  // Track the lastRunAt we initially server-rendered against. When the poll
+  // returns a newer one, the cron has finished a fresh edition and the
+  // server cache has already been purged via revalidateTag in the cron route.
+  // Calling router.refresh() re-runs the server component tree, which reads
+  // the freshly-empty cache, falls through to Supabase, and renders the new
+  // tips — no full page reload, no scroll-position loss, no client-state loss.
+  //
+  // Using a ref instead of state keeps the comparison stable across re-renders
+  // and avoids re-arming the effect on each tick.
+  const baselineLastRunRef = useRef<string | null>(initial.lastRunAt)
+  // Guard against multiple refreshes from the same advancement — once we've
+  // pushed router.refresh() for a given lastRunAt, we don't fire it again
+  // until a NEW lastRunAt arrives.
+  const lastRefreshedForRef = useRef<string | null>(initial.lastRunAt)
 
   useEffect(() => {
     setNowIso(new Date().toISOString())
@@ -175,9 +207,35 @@ export function AgentActivityStrip({ initial }: { initial: AgentStatus }) {
         const res = await fetch("/api/agent-status", { cache: "no-store" })
         if (!res.ok) return
         const data = (await res.json()) as AgentStatus
-        if (!cancelled) {
-          setStatus(data)
-          setNowIso(new Date().toISOString())
+        if (cancelled) return
+        setStatus(data)
+        setNowIso(new Date().toISOString())
+
+        // Auto-refresh trigger.
+        // Conditions, in order of cheapness:
+        //   1. The polled lastRunAt is non-null (cold-start case ignored).
+        //   2. It differs from the lastRunAt we last refreshed against
+        //      (prevents a tight loop if router.refresh() arrives slightly
+        //      after this tick — we wait for the NEXT real advancement).
+        //   3. It's strictly newer than our baseline (we never refresh
+        //      backward, e.g. if the API briefly serves a stale cached row).
+        const polled = data.lastRunAt
+        if (
+          polled &&
+          polled !== lastRefreshedForRef.current &&
+          (baselineLastRunRef.current === null ||
+            new Date(polled).getTime() > new Date(baselineLastRunRef.current).getTime())
+        ) {
+          lastRefreshedForRef.current = polled
+          baselineLastRunRef.current = polled
+          // Soft refresh: re-runs server components, keeps client state.
+          router.refresh()
+          setJustRefreshed(true)
+          // Auto-dismiss the pill after 6s. Long enough to read, short enough
+          // to not linger and confuse the next agent run window.
+          setTimeout(() => {
+            if (!cancelled) setJustRefreshed(false)
+          }, 6_000)
         }
       } catch {
         // Network blips are tolerated silently — the strip simply keeps
@@ -189,7 +247,7 @@ export function AgentActivityStrip({ initial }: { initial: AgentStatus }) {
       cancelled = true
       clearInterval(iv)
     }
-  }, [])
+  }, [router])
 
   const copy = STATE_COPY[status.state]
   const detail = STATE_DETAIL[status.state](status)
@@ -208,6 +266,18 @@ export function AgentActivityStrip({ initial }: { initial: AgentStatus }) {
           <p className="text-sm font-semibold tracking-tight">{copy.label}</p>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">{detail}</p>
+        {/* Auto-refresh indicator — only present in DOM while active so it
+            can't leak past its 6s window. Uses success-toned colours from
+            the existing token set; no new design tokens introduced. */}
+        {justRefreshed && (
+          <span
+            className="inline-flex items-center gap-1.5 self-start rounded-full border border-[color:var(--success)]/30 bg-[color:var(--success-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[color:var(--success)] sm:self-auto"
+            role="status"
+          >
+            <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+            Edition refreshed · just now
+          </span>
+        )}
         {showPipeline && (
           <button
             type="button"
