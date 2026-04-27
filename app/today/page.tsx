@@ -6,7 +6,7 @@ import { TodayFilteredFeed, type FilterableTipCard } from "@/components/today-fi
 import { TodayArchive, type ArchiveDay } from "@/components/today-archive"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { BookOpen, Sparkles, Briefcase, Wrench, GraduationCap } from "lucide-react"
+import { BookOpen, Sparkles, Briefcase, Wrench, GraduationCap, Clock } from "lucide-react"
 import { getCachedFeed, getCachedArchive, type FeedItem } from "@/lib/feed"
 import { getAgentStatus } from "@/lib/agent-status"
 import { AgentActivityStrip } from "@/components/agent-activity-strip"
@@ -100,11 +100,34 @@ export default async function TodayPage() {
   const roleLabelText = role ? (ROLES.find((r) => r.value === role)?.label ?? role) : null
   const skillLabelText = skill ? (SKILL_LEVELS.find((s) => s.value === skill)?.label ?? skill) : null
 
-  const dateLabel = new Date(feedDate + "T00:00:00").toLocaleDateString(undefined, {
+  // Anchor the parsed instant to noon UTC + render in MYT so the displayed
+  // date matches the edition's MYT publication date regardless of which
+  // timezone the rendering server happens to run in. Without these two
+  // anchors a Vercel-hosted SSR pass would mis-label the edition by one day
+  // for any window where UTC and MYT straddle the dateline.
+  const dateLabel = new Date(feedDate + "T12:00:00Z").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "Asia/Kuala_Lumpur",
   })
+
+  // Format the agent's last-run timestamp as "HH:MM MYT" so the eyebrow can
+  // read "Today's edition · Mon, Apr 27 · Updated 04:15 MYT". Mirrors the
+  // helper in app/page.tsx; lives inline here to avoid an extra utility file
+  // for two callers.
+  const lastRunMyt = (() => {
+    const iso = agentStatus.lastRunAt
+    if (!iso) return null
+    try {
+      const myt = new Date(new Date(iso).getTime() + 8 * 60 * 60 * 1000)
+      const hh = String(myt.getUTCHours()).padStart(2, "0")
+      const mm = String(myt.getUTCMinutes()).padStart(2, "0")
+      return `${hh}:${mm} MYT`
+    } catch {
+      return null
+    }
+  })()
 
   const cards = feedItemsToFilterableCards(feed, !!user, savedSet)
 
@@ -126,10 +149,13 @@ export default async function TodayPage() {
     const count = d.items.reduce((acc, it) => acc + (it.ai_daily_tips?.length ?? 0), 0)
     return {
       date: d.date,
-      label: new Date(d.date + "T00:00:00").toLocaleDateString(undefined, {
+      // Same MYT anchor as the primary dateLabel — keeps archive day
+      // headers consistent with the live edition header.
+      label: new Date(d.date + "T12:00:00Z").toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
+        timeZone: "Asia/Kuala_Lumpur",
       }),
       count,
       cards: <>{tipNodes}</>,
@@ -145,12 +171,20 @@ export default async function TodayPage() {
           {/* Header — sparse, info-dense; no marketing duplication */}
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              {/* Eyebrow: "Today's edition · Mon, Apr 27 · Updated 04:15 MYT".
+                  All three slots come from the latest edition row, never from
+                  the server's wall clock. When today's run hasn't happened
+                  yet, the wording flips to "Latest edition" and the stale
+                  banner below gives users the context they need. */}
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
                   <Sparkles className="h-3 w-3" aria-hidden />
-                  {isToday ? "Today" : "Latest edition"}
+                  {isToday ? "Today's edition" : "Latest edition"}
                 </span>
-                <span className="text-xs text-muted-foreground">{dateLabel}</span>
+                <span className="text-xs text-muted-foreground">
+                  {dateLabel}
+                  {lastRunMyt && <> · Updated {lastRunMyt}</>}
+                </span>
               </div>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
                 {isToday ? "Today's tips" : "Latest tips"}
@@ -227,6 +261,34 @@ export default async function TodayPage() {
           <div className="mb-6">
             <AgentActivityStrip initial={agentStatus} />
           </div>
+
+          {/* Stale-edition banner — mirrors the one on the landing page so
+              authed users see the same honest signal: the previous edition
+              is still browsable, but it is clearly labelled as "not today's"
+              and the next agent run is named explicitly. The activity strip
+              above polls /api/agent-status every 30s and triggers a soft
+              router.refresh() the instant a fresh lastRunAt arrives, so this
+              banner self-dismisses without a manual reload. */}
+          {!isToday && feed.length > 0 && (
+            <div
+              className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5 sm:px-5"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  No new edition yet today
+                </span>
+                <span className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  Showing the most recent edition from {dateLabel}
+                  {lastRunMyt && <>, last updated {lastRunMyt}</>}. The next
+                  agent run is scheduled for 20:00 MYT — this page will
+                  refresh automatically.
+                </span>
+              </div>
+            </div>
+          )}
 
           {feed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 p-10 text-center">

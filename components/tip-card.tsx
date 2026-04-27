@@ -30,6 +30,30 @@ export type Tip = {
   /** True when the audit script flagged the source as 401/paywalled. Surfaces a
    *  "Subscription required" badge per PRD §3.6 (REQ-LINK-05). */
   is_paywalled?: boolean | null
+  /** Wall-clock instant when the agent generated this tip. Surfaced as a small
+   *  "Generated HH:MM MYT · Mon DD" chip so users see the precise timing of
+   *  each tip in the edition (PRD per-tip transparency requirement).
+   *  Optional because on-demand callers (/unpack, /ask) may not write it. */
+  created_at?: string | null
+}
+
+/**
+ * Format a UTC ISO timestamp as "HH:MM MYT · Mon DD" in stable en-US.
+ * MYT is UTC+8 with no DST so a constant 8h shift is correct year-round.
+ * Returns null for missing input so callers can drop the chip cleanly.
+ */
+function formatGeneratedAtMyt(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  try {
+    const myt = new Date(new Date(iso).getTime() + 8 * 60 * 60 * 1000)
+    const hh = String(myt.getUTCHours()).padStart(2, "0")
+    const mm = String(myt.getUTCMinutes()).padStart(2, "0")
+    const month = myt.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
+    const day = myt.getUTCDate()
+    return `${hh}:${mm} MYT · ${month} ${day}`
+  } catch {
+    return null
+  }
 }
 
 function formatPublishedAt(iso: string | null | undefined) {
@@ -68,6 +92,10 @@ export function TipCard({
   const sourceHost = hostFrom(tip.source_url)
   const publishedAt = formatPublishedAt(tip.source_published_at)
   const showSource = Boolean(tip.source_url && tip.source_url !== "user-pasted")
+  // When the agent generated this tip — shown as a subtle line under the
+  // headline so users see the precise timing per tip without crowding the
+  // primary metadata chips at the top of the card.
+  const generatedAt = formatGeneratedAtMyt(tip.created_at)
 
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-brand-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-brand)]">
@@ -110,6 +138,12 @@ export function TipCard({
 
         {newsHeadline && (
           <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">{newsHeadline}</p>
+        )}
+        {generatedAt && (
+          <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/70">
+            <Clock className="h-3 w-3" aria-hidden />
+            Generated {generatedAt}
+          </p>
         )}
       </header>
 
