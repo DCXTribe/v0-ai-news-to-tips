@@ -20,6 +20,8 @@ export type AgentStatus = {
   state: AgentState
   /** ISO timestamp of MAX(created_at) on ai_daily_feed; null on cold start. */
   lastRunAt: string | null
+  /** ISO timestamp of the next scheduled cron run (computed from 12:00 UTC = 20:00 MYT). */
+  nextRunAt: string
   /** Count of distinct active vendor blogs the agent monitors. */
   sourcesScanned: number
   /** Count of feed rows in the latest edition. */
@@ -39,6 +41,24 @@ function nowInMyt(): Date {
 
 function todayMytDateString(): string {
   return nowInMyt().toISOString().slice(0, 10)
+}
+
+/**
+ * Compute the next scheduled run in ISO format.
+ * Schedule is daily at 12:00 UTC (= 20:00 MYT).
+ * If current UTC time is before 12:00, next run is today; otherwise tomorrow.
+ */
+function computeNextRunAt(): string {
+  const now = new Date()
+  const todayAt12Utc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0)
+  )
+  if (now.getTime() < todayAt12Utc.getTime()) {
+    return todayAt12Utc.toISOString()
+  }
+  // Next run is tomorrow at 12:00 UTC
+  const tomorrowAt12Utc = new Date(todayAt12Utc.getTime() + 24 * 60 * 60 * 1000)
+  return tomorrowAt12Utc.toISOString()
 }
 
 export const getAgentStatus = unstable_cache(
@@ -110,7 +130,7 @@ export const getAgentStatus = unstable_cache(
       if (ageMs > 28 * 60 * 60 * 1000) state = "failed"
     }
 
-    return { state, lastRunAt, sourcesScanned, articlesRead, tipsPublished }
+    return { state, lastRunAt, nextRunAt: computeNextRunAt(), sourcesScanned, articlesRead, tipsPublished }
   },
   ["agent-status-v1"],
   {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, Search, Globe, Layers, Sparkles, Database, ShieldCheck } from "lucide-react"
+import { ChevronDown, Search, Globe, Layers, Sparkles, Database, ShieldCheck, CalendarClock } from "lucide-react"
 import type { AgentStatus } from "@/lib/agent-status"
 
 /**
@@ -56,6 +56,21 @@ function formatMyt(iso: string | null): string | null {
   const hh = String(myt.getUTCHours()).padStart(2, "0")
   const mm = String(myt.getUTCMinutes()).padStart(2, "0")
   return `${hh}:${mm} MYT`
+}
+
+/**
+ * Format a UTC ISO timestamp as "HH:MM MYT · Day, Mon DD".
+ * For the next-run display so users know both the time AND date.
+ */
+function formatMytWithDate(iso: string | null): string | null {
+  if (!iso) return null
+  const myt = new Date(new Date(iso).getTime() + 8 * 60 * 60 * 1000)
+  const hh = String(myt.getUTCHours()).padStart(2, "0")
+  const mm = String(myt.getUTCMinutes()).padStart(2, "0")
+  const weekday = myt.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+  const month = myt.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
+  const day = myt.getUTCDate()
+  return `${hh}:${mm} MYT · ${weekday}, ${month} ${day}`
 }
 
 const STATE_COPY: Record<AgentStatus["state"], { label: string; dot: string; ring: string }> = {
@@ -135,6 +150,12 @@ const PIPELINE: PipelineStep[] = [
     icon: ShieldCheck,
     label: () => `Last status check verified`,
     time: (_s, nowIso) => formatMyt(nowIso),
+  },
+  {
+    key: "next",
+    icon: CalendarClock,
+    label: () => `Next scheduled run`,
+    time: (s) => formatMytWithDate(s.nextRunAt),
   },
 ]
 
