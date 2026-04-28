@@ -7,7 +7,7 @@ import { TodayArchive, type ArchiveDay } from "@/components/today-archive"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { BookOpen, Sparkles, Briefcase, Wrench, GraduationCap, Clock } from "lucide-react"
-import { getCachedFeed, getCachedArchive, type FeedItem } from "@/lib/feed"
+import { getCachedRecentFeed, getCachedArchive, type FeedItem } from "@/lib/feed"
 import { getAgentStatus } from "@/lib/agent-status"
 import { AgentActivityStrip } from "@/components/agent-activity-strip"
 import { createClient } from "@/lib/supabase/server"
@@ -81,17 +81,31 @@ function feedItemsToFilterableCards(
 
 export default async function TodayPage() {
   // Run feed read + per-user lookup + live agent status in parallel.
-  // Agent status is the new contest-edition "live proof" surface; it shows
-  // last-run time + counts of sources / articles / tips for the visible
-  // edition, and pulses amber while the cron is actively running.
-  const [{ items: feed, date: feedDate, isToday }, { user, savedSet, profile }, agentStatus] = await Promise.all([
-    getCachedFeed(),
-    getViewerContext(),
-    getAgentStatus(),
-  ])
+  // Two-day window (today + yesterday MYT) so the page always carries
+  // a sense of freshness — the same logic as the anonymous landing.
+  const [{ today, yesterday, todayDate, yesterdayDate }, { user, savedSet, profile }, agentStatus] =
+    await Promise.all([getCachedRecentFeed(), getViewerContext(), getAgentStatus()])
 
-  // Archive (last 3 days before the currently shown edition)
-  const archiveDays = await getCachedArchive(feedDate)
+  // Primary-section selection mirrors the landing page:
+  //   - If today's edition exists → primary = today, rail = yesterday.
+  //   - If today's edition is missing yet → primary = yesterday, no rail.
+  //   - If both are empty → first-edition empty state.
+  const hasToday = today.length > 0
+  const hasYesterday = yesterday.length > 0
+  const primaryItems: FeedItem[] = hasToday ? today : yesterday
+  const primaryDate = hasToday ? todayDate : yesterdayDate
+  const isPrimaryToday = hasToday
+  const showYesterdayRail = hasToday && hasYesterday
+
+  // Archive: 3 editions before the *primary* date. When the yesterday rail
+  // is visible we additionally drop yesterdayDate from the archive list so
+  // the same date isn't shown twice on one page (rail + archive = duplicate
+  // headers, duplicate tips). This is a cheap client-side filter rather
+  // than a new fetcher signature.
+  const rawArchive = await getCachedArchive(primaryDate)
+  const archiveDays = showYesterdayRail
+    ? rawArchive.filter((d) => d.date !== yesterdayDate)
+    : rawArchive
 
   const userTools: string[] = profile?.tools ?? []
   const role = profile?.role ?? null
@@ -105,12 +119,15 @@ export default async function TodayPage() {
   // timezone the rendering server happens to run in. Without these two
   // anchors a Vercel-hosted SSR pass would mis-label the edition by one day
   // for any window where UTC and MYT straddle the dateline.
-  const dateLabel = new Date(feedDate + "T12:00:00Z").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: "Asia/Kuala_Lumpur",
-  })
+  const fmtMytDate = (date: string) =>
+    new Date(date + "T12:00:00Z").toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kuala_Lumpur",
+    })
+  const dateLabel = fmtMytDate(primaryDate)
+  const yesterdayDateLabel = fmtMytDate(yesterdayDate)
 
   // Format the agent's last-run timestamp as "HH:MM MYT" so the eyebrow can
   // read "Today's edition · Mon, Apr 27 · Updated 04:15 MYT". Mirrors the
@@ -129,7 +146,15 @@ export default async function TodayPage() {
     }
   })()
 
-  const cards = feedItemsToFilterableCards(feed, !!user, savedSet)
+  // Filter cards / search built only from the primary section. The
+  // Yesterday rail below uses the simpler grid (no filter UI) so the
+  // primary section's filters don't accidentally hide yesterday's tips
+  // or fight with them visually.
+  const cards = feedItemsToFilterableCards(primaryItems, !!user, savedSet)
+  const yesterdayTipCount = yesterday.reduce(
+    (n, item) => n + (item.ai_daily_tips?.length ?? 0),
+    0,
+  )
 
   // Build archive day blocks. To avoid massive client trees we render TipCards
   // here as server-side ReactNodes and pass them in as `cards` ReactNode.
@@ -179,7 +204,7 @@ export default async function TodayPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
                   <Sparkles className="h-3 w-3" aria-hidden />
-                  {isToday ? "Today's edition" : "Latest edition"}
+                  {isPrimaryToday ? "Today's edition" : "Latest edition"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {dateLabel}
@@ -187,10 +212,10 @@ export default async function TodayPage() {
                 </span>
               </div>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
-                {isToday ? "Today's tips" : "Latest tips"}
+                {isPrimaryToday ? "Today's tips" : "Latest tips"}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {feed.length > 0
+                {primaryItems.length > 0
                   ? `${cards.length} tip${cards.length === 1 ? "" : "s"} drawn from official AI vendor blogs.`
                   : "Awaiting first edition. The daily feed publishes overnight."}
               </p>
@@ -269,7 +294,7 @@ export default async function TodayPage() {
               above polls /api/agent-status every 30s and triggers a soft
               router.refresh() the instant a fresh lastRunAt arrives, so this
               banner self-dismisses without a manual reload. */}
-          {!isToday && feed.length > 0 && (
+          {!isPrimaryToday && primaryItems.length > 0 && (
             <div
               className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5 sm:px-5"
               role="status"
@@ -290,7 +315,7 @@ export default async function TodayPage() {
             </div>
           )}
 
-          {feed.length === 0 ? (
+          {primaryItems.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 p-10 text-center">
               <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
                 The first edition is being prepared. The daily feed publishes overnight by reading official AI vendor
@@ -307,6 +332,46 @@ export default async function TodayPage() {
             </div>
           ) : (
             <TodayFilteredFeed cards={cards} userTools={userTools} />
+          )}
+
+          {/* Yesterday rail — only renders when today AND yesterday both
+              have tips so the same edition is never shown twice. Visually
+              stepped down: smaller heading, "Yesterday" eyebrow, dashed
+              divider above so it reads as secondary context, not a duplicate
+              primary surface. Same TipCard component for visual rhythm,
+              just no filter chips because secondary content shouldn't
+              compete with the primary section's filtering UI. */}
+          {showYesterdayRail && (
+            <div className="mt-12 border-t border-dashed border-border/60 pt-10 sm:mt-16 sm:pt-12">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8">
+                <div className="min-w-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-low px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Clock className="h-3 w-3" aria-hidden />
+                    Yesterday
+                  </span>
+                  <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
+                    Yesterday&apos;s tips
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {yesterdayTipCount} tip{yesterdayTipCount === 1 ? "" : "s"} from the {yesterdayDateLabel} edition.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {yesterday.flatMap((item) =>
+                  (item.ai_daily_tips ?? []).map((tip) => (
+                    <TipCard
+                      key={tip.id}
+                      tip={tip}
+                      newsHeadline={item.headline}
+                      newsCategory={item.category}
+                      isAuthed={!!user}
+                      isSaved={savedSet.has(tip.id)}
+                    />
+                  )),
+                )}
+              </div>
+            </div>
           )}
 
           {archive.length > 0 && (
