@@ -24,7 +24,7 @@ import {
   Briefcase,
   Clock,
 } from "lucide-react"
-import { getCachedFeed } from "@/lib/feed"
+import { getCachedRecentFeed } from "@/lib/feed"
 import { getAgentStatus } from "@/lib/agent-status"
 
 // Note: no `force-dynamic`. The page is naturally dynamic because it reads
@@ -81,28 +81,53 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
   if (user) redirect("/today")
 
-  // Anonymous users get the marketing landing with sample today's tips and
-  // the live agent status. Run both in parallel — both are cheap (cached).
-  const [{ items: feed, date: feedDate, isToday }, agentStatus] = await Promise.all([
-    getCachedFeed(),
+  // Anonymous users get the marketing landing with the two-day window
+  // (today + yesterday) plus the live agent status. Run both in parallel.
+  const [{ today, yesterday, todayDate, yesterdayDate }, agentStatus] = await Promise.all([
+    getCachedRecentFeed(),
     getAgentStatus(),
   ])
   const savedSet = new Set<string>()
 
-  // Anchor the parsed instant to noon UTC. The DB column `feed_date` is a
-  // bare YYYY-MM-DD string representing the MYT publication date. Parsing it
-  // as `T12:00:00Z` (= 20:00 MYT) keeps the date on the same MYT calendar
-  // day for any reasonable formatter timezone, including MYT itself.
-  // We never use `new Date()` for the eyebrow — the displayed date comes
-  // exclusively from the latest edition row so a stale agent run never
-  // produces a misleading "Today's edition" header.
-  const feedDateLabel = new Date(feedDate + "T12:00:00Z").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: "Asia/Kuala_Lumpur",
-  })
+  // Headline ("primary") section logic:
+  //   - If today's edition exists, that's the primary section.
+  //   - If today's edition doesn't exist yet, yesterday's edition becomes
+  //     the primary section and the stale-banner explains why.
+  //   - If both are empty, render the first-edition empty state.
+  // The primary section is the one that gets the big H2 + filter chips
+  // (TodayFeedGrid). The "yesterday" rail below only appears when today's
+  // edition AND yesterday's edition are both present — i.e. there's
+  // actually a second day of content to show under today's.
+  const hasToday = today.length > 0
+  const hasYesterday = yesterday.length > 0
+  const primaryItems = hasToday ? today : yesterday
+  const primaryDate = hasToday ? todayDate : yesterdayDate
+  const isPrimaryToday = hasToday
+  const showYesterdayRail = hasToday && hasYesterday
+
+  // Localize a YYYY-MM-DD MYT calendar date as "Weekday, Month D" in MYT.
+  // Anchor to noon UTC (= 20:00 MYT) so the formatter never drifts the
+  // calendar day across the dateline regardless of host timezone.
+  const fmtMytDate = (date: string) =>
+    new Date(date + "T12:00:00Z").toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kuala_Lumpur",
+    })
+  const primaryDateLabel = fmtMytDate(primaryDate)
+  const yesterdayDateLabel = fmtMytDate(yesterdayDate)
   const lastRunMyt = formatLastRunMyt(agentStatus.lastRunAt)
+
+  // Flat counts so we don't repeat the (item -> tips) flatten in JSX.
+  const primaryTipCount = primaryItems.reduce(
+    (n, item) => n + (item.ai_daily_tips?.length ?? 0),
+    0,
+  )
+  const yesterdayTipCount = yesterday.reduce(
+    (n, item) => n + (item.ai_daily_tips?.length ?? 0),
+    0,
+  )
 
   return (
     <div className="flex min-h-svh flex-col pb-20 md:pb-0">
@@ -129,7 +154,7 @@ export default async function HomePage() {
                   "Latest edition" wording + the stale banner below. */}
               <span className="inline-flex w-fit flex-wrap items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 <Sparkles className="h-3 w-3" aria-hidden />
-                {isToday ? "Today's edition" : "Latest edition"} · {feedDateLabel}
+                {isPrimaryToday ? "Today's edition" : "Latest edition"} · {primaryDateLabel}
                 {lastRunMyt && (
                   <>
                     <span className="text-primary/40">·</span>
@@ -182,16 +207,22 @@ export default async function HomePage() {
           <AgentActivityStrip initial={agentStatus} />
         </section>
 
-        {/* Today's feed */}
+        {/* Today's feed — two-day window.
+            The primary section uses TodayFeedGrid (with role/category filter
+            chips + show-more affordance) so it carries the full interactive
+            experience. The "Yesterday" rail below renders when today's
+            edition exists AND yesterday has content; it's deliberately a
+            simpler grid (no second filter UI) to keep yesterday as visibly
+            secondary context, not a duplicate primary surface. */}
         <section id="today" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 md:py-16">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8">
             <div className="min-w-0">
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
-                {isToday ? "Today's tips" : "Latest edition"}
+                {isPrimaryToday ? "Today's tips" : "Latest edition"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {feed.length > 0
-                  ? `${feed.length} tip${feed.length === 1 ? "" : "s"} · ${feedDateLabel}${
+                {primaryTipCount > 0
+                  ? `${primaryTipCount} tip${primaryTipCount === 1 ? "" : "s"} · ${primaryDateLabel}${
                       lastRunMyt ? ` · Updated ${lastRunMyt}` : ""
                     }`
                   : "Awaiting first edition."}
@@ -199,13 +230,13 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Stale-edition banner — only renders when the latest edition's
-              date is earlier than today (MYT) AND there are tips to show.
-              Communicates "no new content this run" without hiding the
-              previous edition; the data is still useful, the labelling is
-              what changes. The amber tone matches the existing "May be
-              outdated" tip badge so users learn one visual language. */}
-          {!isToday && feed.length > 0 && (
+          {/* Stale-edition banner — only renders when today's MYT edition
+              has not yet been published (so yesterday is the "primary"
+              shown). Communicates "no new content this run" without hiding
+              yesterday's still-useful data; the amber tone matches the
+              existing "May be outdated" tip badge so users learn one
+              visual language. */}
+          {!isPrimaryToday && primaryItems.length > 0 && (
             <div
               className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5 sm:mb-8 sm:px-5"
               role="status"
@@ -217,7 +248,7 @@ export default async function HomePage() {
                   No new edition yet today
                 </span>
                 <span className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                  Showing the most recent edition from {feedDateLabel}
+                  Showing the most recent edition from {primaryDateLabel}
                   {lastRunMyt && <>, last updated {lastRunMyt}</>}. The next
                   agent run is scheduled for 20:00 MYT — this page will
                   refresh automatically.
@@ -226,7 +257,7 @@ export default async function HomePage() {
             </div>
           )}
 
-          {feed.length === 0 ? (
+          {primaryItems.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface-low/60 p-10 text-center">
               <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
                 The first edition is being prepared. The daily feed publishes overnight by reading official AI vendor
@@ -243,7 +274,7 @@ export default async function HomePage() {
             </div>
           ) : (
             <TodayFeedGrid>
-              {feed.flatMap((item) =>
+              {primaryItems.flatMap((item) =>
                 (item.ai_daily_tips ?? []).map((tip) => (
                   <TipCard
                     key={tip.id}
@@ -256,6 +287,48 @@ export default async function HomePage() {
                 )),
               )}
             </TodayFeedGrid>
+          )}
+
+          {/* Yesterday rail — secondary surface beneath today's grid.
+              Only renders when today AND yesterday both have tips, so the
+              page never shows the same edition twice (which would happen if
+              today were missing). Visually stepped down: smaller heading,
+              "Yesterday" eyebrow, dashed divider above so it reads as a
+              second section rather than a continuation of the primary grid.
+              Same TipCard component / same grid metrics for visual rhythm,
+              just no filter chips because secondary content shouldn't
+              compete for the primary section's interaction model. */}
+          {showYesterdayRail && (
+            <div className="mt-12 border-t border-dashed border-border/60 pt-10 sm:mt-16 sm:pt-12">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8">
+                <div className="min-w-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-low px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Clock className="h-3 w-3" aria-hidden />
+                    Yesterday
+                  </span>
+                  <h3 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
+                    Yesterday&apos;s tips
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {yesterdayTipCount} tip{yesterdayTipCount === 1 ? "" : "s"} from the {yesterdayDateLabel} edition.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {yesterday.flatMap((item) =>
+                  (item.ai_daily_tips ?? []).map((tip) => (
+                    <TipCard
+                      key={tip.id}
+                      tip={tip}
+                      newsHeadline={item.headline}
+                      newsCategory={item.category}
+                      isAuthed={false}
+                      isSaved={savedSet.has(tip.id)}
+                    />
+                  )),
+                )}
+              </div>
+            </div>
           )}
         </section>
 
