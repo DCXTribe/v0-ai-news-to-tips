@@ -15,6 +15,44 @@ export const dynamic = "force-dynamic"
 
 const SOURCE_LIMIT = 5 // sources processed per cron invocation
 
+/**
+ * Domains that can't be reliably scraped (require JS rendering, bot protection,
+ * or return 403/paywall). These are filtered both at the source level AND at
+ * the article URL level (Tavily may return YouTube links for some vendors).
+ */
+const BLOCKED_DOMAINS = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com", "facebook.com"]
+
+/**
+ * Patterns that indicate the scraped content is an error page rather than
+ * actual article content. If any of these appear prominently in the first
+ * 500 chars, we reject the scrape.
+ */
+const ERROR_PAGE_PATTERNS = [
+  /403\.\s*That's an error/i,
+  /Access Denied/i,
+  /Error 403/i,
+  /Forbidden/i,
+  /you do not have (access|permission)/i,
+  /Please enable JavaScript/i,
+  /Enable JavaScript and cookies/i,
+  /Checking your browser/i,
+  /Just a moment\.\.\./i, // Cloudflare challenge
+]
+
+function isBlockedUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    return BLOCKED_DOMAINS.some((d) => host.includes(d))
+  } catch {
+    return false
+  }
+}
+
+function looksLikeErrorPage(content: string): boolean {
+  const sample = content.slice(0, 500)
+  return ERROR_PAGE_PATTERNS.some((p) => p.test(sample))
+}
+
 type NewsSource = {
   id: string
   name: string
@@ -68,6 +106,11 @@ async function processSource(
     const articleUrl = await findRecentArticleFor(source)
     if (!articleUrl) return { ok: false, source: source.name, error: "no recent article found" }
 
+    // Block URLs from domains that can't be scraped reliably (YouTube, TikTok, etc.)
+    if (isBlockedUrl(articleUrl)) {
+      return { ok: false, source: source.name, error: `blocked domain: ${articleUrl}` }
+    }
+
     // Skip if we already covered this URL on any previous day
     const { data: existingFeed } = await service
       .from("ai_daily_feed")
@@ -79,6 +122,13 @@ async function processSource(
     const article = await scrapeUrl(articleUrl)
     if (!article.markdown || article.markdown.length < 300) {
       return { ok: false, source: source.name, error: "article body too short" }
+    }
+
+    // Detect error pages (403, Cloudflare challenge, etc.) that the scraper
+    // returned as if they were real content. This prevents the AI from
+    // generating tips like "Quick fix for YouTube 403 errors" from error pages.
+    if (looksLikeErrorPage(article.markdown)) {
+      return { ok: false, source: source.name, error: "scraped content looks like an error page" }
     }
 
     const item = await generateTipFromNewsItem({ article, vendor: source.vendor })
