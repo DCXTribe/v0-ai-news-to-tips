@@ -142,47 +142,61 @@ export const getCachedFeed = unstable_cache(
 )
 
 /**
- * Reads tips from today + yesterday (MYT) for the landing page hero.
+ * Inner fetcher for the two-day window — pure of caching concerns.
  *
- * Returns both buckets in a single round-trip via `IN (...)`. Cached on the
- * shared FEED_CACHE_TAG so the cron's `revalidateTag` in `/api/cron/daily-feed`
- * purges this fetcher the moment a new edition is written — combined with the
- * `<AgentActivityStrip>` 30s poll → `router.refresh()` flow, the page picks
- * up the fresh data without a manual reload.
- *
- * The cache key embeds today's MYT date so a calendar rollover (e.g. 00:00
- * MYT) naturally invalidates the previous day's cached result.
+ * Takes the date pair as ARGUMENTS so they participate in the unstable_cache
+ * key. The previous version computed dates inside the cached function, which
+ * meant the cache key was static ["daily-feed-recent-v1"] and survived
+ * across midnight MYT rollovers — so the cached tuple's internal date
+ * strings drifted out of sync with the real today/yesterday, hiding the
+ * yesterday rail entirely until the next cron-driven `revalidateTag`.
  */
-export const getCachedRecentFeed = unstable_cache(
-  async (): Promise<RecentFeedResult> => {
-    const todayDate = todayMytDateString()
-    const yesterdayDate = yesterdayMytDateString()
-    const service = createServiceClient()
+async function fetchRecentFeed(todayDate: string, yesterdayDate: string): Promise<RecentFeedResult> {
+  const service = createServiceClient()
 
-    const { data } = await service
-      .from("ai_daily_feed")
-      .select("*, ai_daily_tips(*)")
-      .in("feed_date", [todayDate, yesterdayDate])
-      .order("feed_date", { ascending: false })
-      .order("created_at", { ascending: true })
+  const { data } = await service
+    .from("ai_daily_feed")
+    .select("*, ai_daily_tips(*)")
+    .in("feed_date", [todayDate, yesterdayDate])
+    .order("feed_date", { ascending: false })
+    .order("created_at", { ascending: true })
 
-    const all = (data ?? []) as FeedItem[]
-    return {
-      today: stripSourcelessTips(all.filter((i) => i.feed_date === todayDate)),
-      yesterday: stripSourcelessTips(all.filter((i) => i.feed_date === yesterdayDate)),
-      todayDate,
-      yesterdayDate,
-    }
-  },
-  // Versioned key prefix so future shape changes don't collide with the
-  // single-edition cache. Including the MYT date in the key ensures a
-  // midnight rollover gives us a fresh cache slot even before the cron runs.
-  ["daily-feed-recent-v1"],
-  {
-    tags: [FEED_CACHE_TAG],
-    revalidate: 3600,
-  },
-)
+  const all = (data ?? []) as FeedItem[]
+  return {
+    today: stripSourcelessTips(all.filter((i) => i.feed_date === todayDate)),
+    yesterday: stripSourcelessTips(all.filter((i) => i.feed_date === yesterdayDate)),
+    todayDate,
+    yesterdayDate,
+  }
+}
+
+const cachedRecentFeed = unstable_cache(fetchRecentFeed, ["daily-feed-recent-v2"], {
+  tags: [FEED_CACHE_TAG],
+  revalidate: 3600,
+})
+
+/**
+ * Reads tips from today + yesterday (MYT) for the landing page hero and
+ * the authed /today page.
+ *
+ * Cache strategy:
+ *   - Tagged on FEED_CACHE_TAG so the cron's revalidateTag purges this
+ *     the moment a new edition is written (combined with the activity
+ *     strip's 30s poll → router.refresh, the UI updates without a reload).
+ *   - The MYT today date is part of the cache key (via the function
+ *     argument signature), so 00:00 MYT rollover → new key → cache miss
+ *     → fresh fetch. This eliminates the class of bug where a cached
+ *     tuple's internal date strings could go stale after midnight.
+ */
+export function getCachedRecentFeed(): Promise<RecentFeedResult> {
+  // Compute on every call — `cachedRecentFeed` uses the serialized
+  // arguments as part of its cache key, so passing dates in (rather than
+  // computing inside the cached fn) makes today/yesterday a different
+  // cache slot from tomorrow/today.
+  const todayDate = todayMytDateString()
+  const yesterdayDate = yesterdayMytDateString()
+  return cachedRecentFeed(todayDate, yesterdayDate)
+}
 
 /**
  * Returns the prior 3 editions (excluding the latest currently-shown date).
