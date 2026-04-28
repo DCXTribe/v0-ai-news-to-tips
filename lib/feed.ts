@@ -22,8 +22,47 @@ export type FeedResult = {
   isToday: boolean
 }
 
+/**
+ * Two-day window for the landing page.
+ *
+ * The brief: only show tips from today + yesterday so the feed never feels
+ * stale and the front page always conveys freshness. Each bucket is keyed
+ * by the MYT calendar date (matching how `feed_date` is stored).
+ *
+ * - `today` is empty when the agent hasn't run yet for today's MYT date.
+ * - `yesterday` is empty if there was no edition the previous day (cold
+ *   start, or a missed run).
+ * - Both empty = first-edition empty state on the page.
+ */
+export type RecentFeedResult = {
+  today: FeedItem[]
+  yesterday: FeedItem[]
+  todayDate: string
+  yesterdayDate: string
+}
+
 function todayDateString() {
   return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * "Today" in Malaysia Time (UTC+8, no DST).
+ *
+ * The cron writes `feed_date = (now() at time zone 'Asia/Kuala_Lumpur')::date`
+ * so the column always carries an MYT calendar date. Looking it up requires
+ * the same MYT calendar date — using the server's UTC date here would
+ * mis-key the lookup for the 8h window where UTC and MYT straddle the
+ * dateline (e.g. Mon 07:00 MYT = Sun 23:00 UTC; UTC date is still Sunday).
+ */
+function todayMytDateString(): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+/** Yesterday in MYT — same anchoring rule as `todayMytDateString`. */
+function yesterdayMytDateString(): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
 }
 
 /**
@@ -99,6 +138,49 @@ export const getCachedFeed = unstable_cache(
   {
     tags: [FEED_CACHE_TAG],
     revalidate: 3600, // 1h fallback; cron purges via revalidateTag immediately on new edition
+  },
+)
+
+/**
+ * Reads tips from today + yesterday (MYT) for the landing page hero.
+ *
+ * Returns both buckets in a single round-trip via `IN (...)`. Cached on the
+ * shared FEED_CACHE_TAG so the cron's `revalidateTag` in `/api/cron/daily-feed`
+ * purges this fetcher the moment a new edition is written — combined with the
+ * `<AgentActivityStrip>` 30s poll → `router.refresh()` flow, the page picks
+ * up the fresh data without a manual reload.
+ *
+ * The cache key embeds today's MYT date so a calendar rollover (e.g. 00:00
+ * MYT) naturally invalidates the previous day's cached result.
+ */
+export const getCachedRecentFeed = unstable_cache(
+  async (): Promise<RecentFeedResult> => {
+    const todayDate = todayMytDateString()
+    const yesterdayDate = yesterdayMytDateString()
+    const service = createServiceClient()
+
+    const { data } = await service
+      .from("ai_daily_feed")
+      .select("*, ai_daily_tips(*)")
+      .in("feed_date", [todayDate, yesterdayDate])
+      .order("feed_date", { ascending: false })
+      .order("created_at", { ascending: true })
+
+    const all = (data ?? []) as FeedItem[]
+    return {
+      today: stripSourcelessTips(all.filter((i) => i.feed_date === todayDate)),
+      yesterday: stripSourcelessTips(all.filter((i) => i.feed_date === yesterdayDate)),
+      todayDate,
+      yesterdayDate,
+    }
+  },
+  // Versioned key prefix so future shape changes don't collide with the
+  // single-edition cache. Including the MYT date in the key ensures a
+  // midnight rollover gives us a fresh cache slot even before the cron runs.
+  ["daily-feed-recent-v1"],
+  {
+    tags: [FEED_CACHE_TAG],
+    revalidate: 3600,
   },
 )
 
