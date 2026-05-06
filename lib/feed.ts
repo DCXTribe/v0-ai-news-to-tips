@@ -41,10 +41,6 @@ export type RecentFeedResult = {
   yesterdayDate: string
 }
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 /**
  * "Today" in Malaysia Time (UTC+8, no DST).
  *
@@ -100,7 +96,7 @@ function stripSourcelessTips(items: FeedItem[]): FeedItem[] {
  */
 export const getCachedFeed = unstable_cache(
   async (): Promise<FeedResult> => {
-    const today = todayDateString()
+    const today = todayMytDateString()
     const service = createServiceClient()
 
     const { data: todays } = await service
@@ -145,11 +141,13 @@ export const getCachedFeed = unstable_cache(
  * Inner fetcher for the two-day window — pure of caching concerns.
  *
  * Takes the date pair as ARGUMENTS so they participate in the unstable_cache
- * key. The previous version computed dates inside the cached function, which
- * meant the cache key was static ["daily-feed-recent-v1"] and survived
- * across midnight MYT rollovers — so the cached tuple's internal date
- * strings drifted out of sync with the real today/yesterday, hiding the
- * yesterday rail entirely until the next cron-driven `revalidateTag`.
+ * key, making midnight MYT rollover naturally yield a new cache slot.
+ *
+ * Fallback behaviour: if both today AND yesterday are empty (cron missed a
+ * day or more), we do a second query to find the most recent available
+ * edition and surface it as "yesterday" so the page always has content to
+ * display rather than an empty "Awaiting first edition" state. The stale
+ * banner on the page handles the UX framing ("No new edition yet today").
  */
 async function fetchRecentFeed(todayDate: string, yesterdayDate: string): Promise<RecentFeedResult> {
   const service = createServiceClient()
@@ -162,9 +160,44 @@ async function fetchRecentFeed(todayDate: string, yesterdayDate: string): Promis
     .order("created_at", { ascending: true })
 
   const all = (data ?? []) as FeedItem[]
+  const todayItems = stripSourcelessTips(all.filter((i) => i.feed_date === todayDate))
+  const yesterdayItems = stripSourcelessTips(all.filter((i) => i.feed_date === yesterdayDate))
+
+  // Both buckets empty → cron has missed ≥2 days. Fall back to the most
+  // recent available edition so the page is never blank.
+  if (todayItems.length === 0 && yesterdayItems.length === 0) {
+    const { data: latestDate } = await service
+      .from("ai_daily_feed")
+      .select("feed_date")
+      .lt("feed_date", todayDate) // exclude future dates just in case
+      .order("feed_date", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (latestDate) {
+      const { data: latestItems } = await service
+        .from("ai_daily_feed")
+        .select("*, ai_daily_tips(*)")
+        .eq("feed_date", latestDate.feed_date)
+        .order("created_at", { ascending: true })
+
+      const fallback = stripSourcelessTips((latestItems ?? []) as FeedItem[])
+      if (fallback.length > 0) {
+        // Surface as "yesterday" so the existing stale-banner logic fires
+        // ("No new edition yet today · Showing most recent edition from…").
+        return {
+          today: [],
+          yesterday: fallback,
+          todayDate,
+          yesterdayDate: latestDate.feed_date,
+        }
+      }
+    }
+  }
+
   return {
-    today: stripSourcelessTips(all.filter((i) => i.feed_date === todayDate)),
-    yesterday: stripSourcelessTips(all.filter((i) => i.feed_date === yesterdayDate)),
+    today: todayItems,
+    yesterday: yesterdayItems,
     todayDate,
     yesterdayDate,
   }

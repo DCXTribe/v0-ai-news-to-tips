@@ -62,7 +62,12 @@ type NewsSource = {
 }
 
 function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
+  // MUST use MYT (UTC+8) — the DB stores feed_date as MYT calendar date
+  // (written as `(now() at time zone 'Asia/Kuala_Lumpur')::date` in early
+  // scripts). Using plain UTC here would write a row for yesterday's MYT date
+  // during the 8h window where UTC and MYT straddle midnight, causing the
+  // landing page (which also queries by MYT date) to never find it.
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
 function isAuthorized(req: Request) {
