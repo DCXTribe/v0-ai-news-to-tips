@@ -41,10 +41,6 @@ export type RecentFeedResult = {
   yesterdayDate: string
 }
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 /**
  * "Today" in Malaysia Time (UTC+8, no DST).
  *
@@ -100,7 +96,7 @@ function stripSourcelessTips(items: FeedItem[]): FeedItem[] {
  */
 export const getCachedFeed = unstable_cache(
   async (): Promise<FeedResult> => {
-    const today = todayDateString()
+    const today = todayMytDateString()
     const service = createServiceClient()
 
     const { data: todays } = await service
