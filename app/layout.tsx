@@ -46,6 +46,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrains.variable} bg-background`}>
       <body className="font-sans antialiased min-h-svh">
+        <div className="w-full bg-foreground text-background px-4 py-2 text-center text-xs font-medium tracking-wide">
+          A DCXTribe experiment. See what else we&apos;re building &rarr;{" "}
+          <a
+            href="https://www.dcxtribe.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:opacity-75 transition-opacity"
+          >
+            dcxtribe.com
+          </a>
+        </div>
         {children}
         <Toaster />
         {process.env.NODE_ENV === "production" && <Analytics />}
