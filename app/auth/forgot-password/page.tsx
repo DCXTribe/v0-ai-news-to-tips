@@ -27,9 +27,8 @@ export default function Page() {
       // Recovery email links route through /auth/callback (which exchanges
       // the code for a session) and then forward to /auth/reset-password
       // where the now-logged-in user can set a new password.
-      const redirectTo =
-        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-        `${window.location.origin}/auth/callback?next=/auth/reset-password`
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
+      const redirectTo = `${siteUrl}/auth/callback?next=/auth/reset-password`
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error
